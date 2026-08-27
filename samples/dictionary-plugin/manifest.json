@@ -1,0 +1,12 @@
+{
+  "id": "dev.example.dictionary",
+  "name": "Dictionary lookup",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "entrypoint": "main.js",
+  "permissions": ["network"],
+  "allowedDomains": ["api.dictionaryapi.dev"],
+  "actions": [
+    { "id": "lookup", "title": "Dictionary", "context": "selection" }
+  ]
+}

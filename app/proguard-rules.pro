@@ -1,0 +1,2 @@
+-keep class com.dokar.quickjs.** { *; }
+-keepclassmembers class app.readbound.plugin.** { *; }

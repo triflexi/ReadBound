@@ -1,0 +1,32 @@
+# Android Studio / IntelliJ
+*.iml
+.idea/
+.cxx/
+captures/
+.externalNativeBuild/
+
+# Gradle
+.gradle/
+.kotlin/
+build/
+**/build/
+
+# Local configuration (never commit)
+local.properties
+keystore.properties
+
+# Signing keys (never commit)
+*.jks
+*.keystore
+
+# Build artifacts
+*.apk
+*.ap_
+*.aab
+
+# User data: dictionaries are imported by the user, not bundled
+/dictionary/
+
+# OS noise
+.DS_Store
+Thumbs.db
