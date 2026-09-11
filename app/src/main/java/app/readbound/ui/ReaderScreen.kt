@@ -362,7 +362,11 @@ fun ReaderScreen(container: AppContainer, bookId: String, onBack: () -> Unit) {
                         seekRevision++
                     },
                     onContents = { contentsVisible = true },
-                    onSettings = { settingsVisible = true },
+                    onSettings = {
+                        // Do not leave another translucent glass layer behind the sheet.
+                        controlsVisible = false
+                        settingsVisible = true
+                    },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -375,7 +379,10 @@ fun ReaderScreen(container: AppContainer, bookId: String, onBack: () -> Unit) {
         )
     }
 
-    if (settingsVisible) ReaderSettingsSheet(preferences, container, onDismiss = { settingsVisible = false })
+    if (settingsVisible) ReaderSettingsSheet(preferences, container, onDismiss = {
+        settingsVisible = false
+        controlsVisible = true
+    })
     if (contentsVisible && publication != null) ContentsSheet(
         publication = publication,
         current = chapterIndex,
@@ -964,8 +971,18 @@ private fun readerScript(preferences: ReaderPreferences, darkTheme: Boolean, ini
 @Composable
 private fun ReaderSettingsSheet(preferences: ReaderPreferences, container: AppContainer, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
+    var draft by remember { mutableStateOf(preferences) }
+    fun stage(next: ReaderPreferences) {
+        draft = next
+    }
+    fun close() {
+        scope.launch {
+            if (draft != preferences) container.settings.updateReader { draft }
+            onDismiss()
+        }
+    }
     val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = MaterialTheme.colorScheme.surface) {
+    ModalBottomSheet(onDismissRequest = ::close, sheetState = sheetState, containerColor = MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(readerString("Reading settings", "Настройки чтения"), style = MaterialTheme.typography.headlineMedium)
             Text(readerString("Theme and text appearance", "Тема и вид текста"), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -976,26 +993,30 @@ private fun ReaderSettingsSheet(preferences: ReaderPreferences, container: AppCo
                         modifier = Modifier.weight(1f),
                         color = when (theme) { ReaderTheme.LIGHT -> Color.White; ReaderTheme.SEPIA -> ReaderColors.ReaderBackground; ReaderTheme.DARK -> ReaderColors.SurfaceDark },
                         shape = RoundedCornerShape(18.dp),
-                        border = if (!preferences.followSystemTheme && preferences.theme == theme) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-                        onClick = { scope.launch { container.settings.updateReader { it.copy(theme = theme, followSystemTheme = false) } } },
+                        border = if (!draft.followSystemTheme && draft.theme == theme) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                        onClick = { stage(draft.copy(theme = theme, followSystemTheme = false)) },
                     ) { Column(Modifier.padding(14.dp)) { Text("Aa", color = if (theme == ReaderTheme.DARK) Color.White else ReaderColors.TextPrimary); Text(theme.name.lowercase().replaceFirstChar { it.titlecase() }, style = MaterialTheme.typography.labelMedium, color = if (theme == ReaderTheme.DARK) Color.White else ReaderColors.TextPrimary) } }
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) { Text(readerString("Follow system theme", "Как в системе"), modifier = Modifier.weight(1f)); Switch(preferences.followSystemTheme, { value -> scope.launch { container.settings.updateReader { it.copy(followSystemTheme = value) } } }) }
+            Row(verticalAlignment = Alignment.CenterVertically) { Text(readerString("Follow system theme", "Как в системе"), modifier = Modifier.weight(1f)); Switch(draft.followSystemTheme, { value -> stage(draft.copy(followSystemTheme = value)) }) }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(Modifier.weight(1f), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
-                    Row(Modifier.height(48.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) { Text(preferences.fontFamily, modifier = Modifier.weight(1f)); TextButton(onClick = { scope.launch { container.settings.updateReader { it.copy(fontFamily = if (it.fontFamily == "Literata") "Sans" else "Literata") } } }) { Text("Change") } }
+                    Row(Modifier.height(48.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) { Text(draft.fontFamily, modifier = Modifier.weight(1f)); TextButton(onClick = { stage(draft.copy(fontFamily = if (draft.fontFamily == "Literata") "Sans" else "Literata")) }) { Text(readerString("Change", "Сменить")) } }
                 }
                 Surface(Modifier.width(120.dp), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
                     Row(Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
-                        TextButton(onClick = { scope.launch { container.settings.updateReader { it.copy(fontSize = it.fontSize - 1) } } }) { Text("−") }
-                        Text("${preferences.fontSize}")
-                        TextButton(onClick = { scope.launch { container.settings.updateReader { it.copy(fontSize = it.fontSize + 1) } } }) { Text("+") }
+                        TextButton(onClick = { stage(draft.copy(fontSize = (draft.fontSize - 1).coerceAtLeast(12))) }) { Text("−") }
+                        Text("${draft.fontSize}")
+                        TextButton(onClick = { stage(draft.copy(fontSize = (draft.fontSize + 1).coerceAtMost(36))) }) { Text("+") }
                     }
                 }
             }
-            Text(readerString("Line spacing", "Межстрочный интервал") + " · ${"%.2f".format(Locale.US, preferences.lineHeight)}")
-            Slider(preferences.lineHeight.toFloat(), { value -> scope.launch { container.settings.updateReader { it.copy(lineHeight = value.toDouble()) } } }, valueRange = 1.1f..2.2f)
+            Text(readerString("Line spacing", "Межстрочный интервал") + " · ${"%.2f".format(Locale.US, draft.lineHeight)}")
+            Slider(
+                value = draft.lineHeight.toFloat(),
+                onValueChange = { value -> draft = draft.copy(lineHeight = value.toDouble()) },
+                valueRange = 1.1f..2.2f,
+            )
             Text(readerString("Page margins", "Поля страницы"))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
@@ -1003,8 +1024,8 @@ private fun ReaderSettingsSheet(preferences: ReaderPreferences, container: AppCo
                     24 to readerString("Medium", "Средние"),
                     40 to readerString("Wide", "Широкие"),
                 ).forEach { (value, label) ->
-                    ReaderSettingOption(label, preferences.margin == value, Modifier.weight(1f)) {
-                        scope.launch { container.settings.updateReader { it.copy(margin = value) } }
+                    ReaderSettingOption(label, draft.margin == value, Modifier.weight(1f)) {
+                        stage(draft.copy(margin = value))
                     }
                 }
             }
@@ -1012,12 +1033,12 @@ private fun ReaderSettingsSheet(preferences: ReaderPreferences, container: AppCo
                 ReadingMode.entries.forEach { mode ->
                     ReaderSettingOption(
                         if (mode == ReadingMode.PAGED) readerString("Pages", "Страницы") else readerString("Scroll", "Прокрутка"),
-                        preferences.readingMode == mode,
+                        draft.readingMode == mode,
                         Modifier.weight(1f),
-                    ) { scope.launch { container.settings.updateReader { it.copy(readingMode = mode) } } }
+                    ) { stage(draft.copy(readingMode = mode)) }
                 }
             }
-            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(19.dp)) { Text(readerString("Done", "Готово")) }
+            Button(onClick = ::close, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(19.dp)) { Text(readerString("Done", "Готово")) }
             Spacer(Modifier.height(22.dp))
         }
     }

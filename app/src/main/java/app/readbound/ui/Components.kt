@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,7 +48,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -60,9 +60,6 @@ import app.readbound.settings.AnkiPreferences
 import app.readbound.ui.theme.ReaderColors
 import kotlinx.coroutines.delay
 import com.kyant.backdrop.Backdrop
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.ui.semantics.Role
 
 @Composable
 fun readerString(english: String, russian: String): String = if (Locale.current.language == "ru") russian else english
@@ -126,20 +123,18 @@ fun RoundIconButton(
 
 @Composable
 fun ReaderBottomNavigation(selected: String, modifier: Modifier = Modifier, backdrop: Backdrop? = null, onSelect: (String) -> Unit) {
-    val shape = RoundedCornerShape(50)
-    Box(
+    RepositoryLiquidBottomTabs(
+        selectedTabIndex = if (selected == "notes") 1 else 0,
+        backdrop = backdrop,
+        tabsCount = 2,
         modifier = modifier
             .widthIn(max = 480.dp)
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
-            .liquidGlass(shape, backdrop = backdrop, elevated = true),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
     ) {
-        Row(Modifier.heightIn(min = 72.dp).padding(8.dp).selectableGroup(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            BottomNavigationItem("library", R.raw.icon_library, readerString("Library", "Библиотека"), selected == "library", Modifier.weight(1f), onSelect)
-            Spacer(Modifier.width(8.dp))
-            BottomNavigationItem("notes", R.raw.icon_notes, readerString("Notes", "Заметки"), selected == "notes", Modifier.weight(1f), onSelect)
-        }
+        BottomNavigationItem("library", R.raw.icon_library, readerString("Library", "Библиотека"), selected == "library", Modifier, onSelect)
+        BottomNavigationItem("notes", R.raw.icon_notes, readerString("Notes", "Заметки"), selected == "notes", Modifier, onSelect)
     }
 }
 
@@ -434,7 +429,7 @@ private fun AnkiCardIsland(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun BottomNavigationItem(
+private fun RowScope.BottomNavigationItem(
     id: String,
     @RawRes icon: Int,
     label: String,
@@ -442,18 +437,12 @@ private fun BottomNavigationItem(
     modifier: Modifier,
     onSelect: (String) -> Unit,
 ) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(50))
-            .then(if (selected) Modifier.liquidGlass(RoundedCornerShape(50), MaterialTheme.colorScheme.primaryContainer) else Modifier)
-            .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(id) })
-            .heightIn(min = 56.dp)
-            .padding(horizontal = 10.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
+    RepositoryLiquidBottomTab(
+        selected = selected,
+        onClick = { onSelect(id) },
+        modifier = modifier,
     ) {
         ReaderIcon(icon, label, Modifier.size(24.dp), ColorFilter.tint(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant))
-        Spacer(Modifier.width(10.dp))
         Text(label, style = MaterialTheme.typography.labelMedium, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

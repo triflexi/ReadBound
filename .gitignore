@@ -30,3 +30,5 @@ keystore.properties
 # OS noise
 .DS_Store
 Thumbs.db
+# Local upstream checkout used as the source/reference for the vendored Liquid Glass controls.
+AndroidLiquidGlass-kmp/

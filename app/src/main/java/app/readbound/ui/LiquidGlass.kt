@@ -41,7 +41,7 @@ import com.kyant.backdrop.effects.vibrancy
 
 // Only the background is recorded here. Recording a glass surface into the
 // backdrop it reads would create a recursive graphics-layer dependency.
-private val LocalGlassBackdrop = staticCompositionLocalOf<Backdrop?> { null }
+internal val LocalGlassBackdrop = staticCompositionLocalOf<Backdrop?> { null }
 
 @Composable
 fun GlassBackground(content: @Composable () -> Unit) {
@@ -83,7 +83,9 @@ fun Modifier.liquidGlass(
     val opacity = when {
         colored -> .98f
         !supportsEffects || backdrop == null -> if (dark) .96f else .94f
-        elevated -> if (dark) .78f else .68f
+        // Reader chrome is laid over dense text. Keep it translucent, but never
+        // transparent enough for glyphs below it to bleed into control labels.
+        elevated -> if (dark) .90f else .86f
         else -> if (dark) .86f else .76f
     }
     val base = if (tint.alpha == 0f) MaterialTheme.colorScheme.surface else tint
@@ -157,16 +159,18 @@ fun GlassButton(
     contentPadding: PaddingValues = PaddingValues(horizontal = 22.dp, vertical = 12.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
-    GlassSurface(
-        modifier = modifier.defaultMinSize(minHeight = 48.dp).semantics { role = Role.Button },
-        shape = shape,
-        color = if (enabled) colors.containerColor else colors.disabledContainerColor,
-        contentColor = if (enabled) colors.contentColor else colors.disabledContentColor,
-        onClick = onClick, enabled = enabled,
-    ) {
+    val container = if (enabled) colors.containerColor else colors.disabledContainerColor
+    val foreground = if (enabled) colors.contentColor else colors.disabledContentColor
+    CompositionLocalProvider(LocalContentColor provides foreground) {
         ProvideTextStyle(MaterialTheme.typography.labelLarge) {
-            Row(Modifier.padding(contentPadding), horizontalArrangement = Arrangement.Center,
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, content = content)
+            RepositoryLiquidButton(
+                onClick = onClick,
+                backdrop = LocalGlassBackdrop.current,
+                modifier = modifier.defaultMinSize(minHeight = 48.dp).semantics { role = Role.Button },
+                enabled = enabled,
+                tint = if (container == MaterialTheme.colorScheme.primary) container else Color.Unspecified,
+                surfaceColor = container.copy(alpha = if (container == MaterialTheme.colorScheme.surface) .34f else .88f),
+            ) { content() }
         }
     }
 }
@@ -233,13 +237,7 @@ fun GlassTextField(
 
 @Composable
 fun GlassSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifier: Modifier = Modifier) {
-    Switch(checked, onCheckedChange, modifier, colors = SwitchDefaults.colors(
-        checkedThumbColor = Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary,
-        checkedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = .35f),
-        uncheckedThumbColor = Color.White,
-        uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .20f),
-        uncheckedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = .35f),
-    ))
+    RepositoryLiquidToggle(checked, onCheckedChange, LocalGlassBackdrop.current, modifier)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -251,15 +249,18 @@ fun GlassSlider(
     onValueChangeFinished: (() -> Unit)? = null,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val trackBackdrop = rememberLayerBackdrop()
     Slider(value, onValueChange, modifier.heightIn(min = 48.dp),
         onValueChangeFinished = onValueChangeFinished, valueRange = valueRange,
+        interactionSource = interaction,
         thumb = {
-            GlassSurface(Modifier.size(30.dp), shape = RoundedCornerShape(50),
-                color = Color.White, shadowElevation = 4.dp) {}
+            RepositoryLiquidSliderThumb(LocalGlassBackdrop.current, trackBackdrop, pressed)
         },
         track = { state -> SliderDefaults.Track(state,
             thumbTrackGapSize = 0.dp, drawStopIndicator = null,
-            modifier = Modifier.height(6.dp),
+            modifier = Modifier.height(6.dp).layerBackdrop(trackBackdrop),
             colors = SliderDefaults.colors(inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .13f))) },
     )
 }
