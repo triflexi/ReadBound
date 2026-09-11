@@ -1,5 +1,7 @@
 package app.readbound.ui
 
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -20,18 +22,18 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import app.readbound.ui.GlassButton as Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
+import app.readbound.ui.GlassModalBottomSheet as ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import app.readbound.ui.GlassSurface as Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
+import app.readbound.ui.GlassTextField as TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -82,6 +84,8 @@ fun LibraryScreen(
     onNotes: () -> Unit,
     onSettings: () -> Unit,
 ) {
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val navigationBackdrop = rememberLayerBackdrop { drawRect(backgroundColor); drawContent() }
     val wide = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() >= 720.dp }
     val books by container.repository.library.collectAsStateWithLifecycle(initialValue = emptyList())
     val scope = rememberCoroutineScope()
@@ -136,22 +140,28 @@ fun LibraryScreen(
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onBackground,
             floatingActionButton = {
-                FloatingActionButton(
+                Surface(
                     onClick = { importLauncher.launch(BOOK_MIME_TYPES) },
-                    shape = RoundedCornerShape(20.dp),
-                    containerColor = ReaderColors.Lime,
-                    contentColor = ReaderColors.SurfaceDark,
-                    modifier = Modifier.padding(bottom = if (wide) 0.dp else 88.dp),
-                ) { ReaderIcon(R.raw.icon_add, "Add book", Modifier.size(24.dp), ColorFilter.tint(ReaderColors.SurfaceDark)) }
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.padding(bottom = if (wide) 0.dp else 88.dp).size(60.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        ReaderIcon(R.raw.icon_add, readerString("Add book", "Добавить книгу"), Modifier.size(26.dp), ColorFilter.tint(MaterialTheme.colorScheme.onPrimary))
+                    }
+                }
             },
         ) { padding ->
             BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
-            if (wide) ReaderNavigationRail("library") { if (it == "notes") onNotes() }
-            val contentWidth = if (maxWidth > 720.dp) 680.dp else maxWidth
+
+            val contentWidth = (maxWidth - if (wide) 108.dp else 0.dp).coerceAtMost(680.dp)
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(start = if (wide) 96.dp else 0.dp),
+                modifier = Modifier.fillMaxSize().padding(start = if (wide) 108.dp else 0.dp).layerBackdrop(navigationBackdrop),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp),
             ) {
@@ -160,12 +170,12 @@ fun LibraryScreen(
                         if (searchActive) {
                             SearchField(query, { query = it }, { query = ""; searchActive = false })
                             Spacer(Modifier.height(20.dp))
-                            Text("Results", style = MaterialTheme.typography.headlineMedium)
-                            Text("${filtered.size} books", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(readerString("Results", "Результаты"), style = MaterialTheme.typography.headlineMedium)
+                            Text(readerString("${filtered.size} books", "Книг: ${filtered.size}"), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         } else {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(readerString("YOUR COLLECTION", "ВАША КОЛЛЕКЦИЯ"), style = MaterialTheme.typography.labelMedium, color = ReaderColors.Primary)
+                                    Text(readerString("YOUR COLLECTION", "ВАША КОЛЛЕКЦИЯ"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                     Text(readerString("My library", "Моя библиотека"), style = MaterialTheme.typography.displayLarge)
                                     Text(readerString("${books.size} books · ${books.count { (it.state?.progression ?: 0.0) in 0.001..0.999 }} in progress", "Книг: ${books.size} · читаются: ${books.count { (it.state?.progression ?: 0.0) in 0.001..0.999 }}"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
@@ -204,9 +214,9 @@ fun LibraryScreen(
                                     onClick = { showSort = true },
                                 ) {
                                     Row(Modifier.padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(sort.label(), style = MaterialTheme.typography.labelMedium, color = ReaderColors.Primary)
+                                        Text(sort.label(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                         Spacer(Modifier.width(6.dp))
-                                        ReaderIcon(R.raw.icon_chevron, null, Modifier.size(16.dp), ColorFilter.tint(ReaderColors.Primary))
+                                        ReaderIcon(R.raw.icon_chevron, null, Modifier.size(16.dp), ColorFilter.tint(MaterialTheme.colorScheme.primary))
                                     }
                                 }
                             }
@@ -235,7 +245,8 @@ fun LibraryScreen(
             }
             }
         }
-        if (!wide) ReaderBottomNavigation("library", Modifier.align(Alignment.BottomCenter)) { if (it == "notes") onNotes() }
+        if (wide) ReaderNavigationRail("library", backdrop = navigationBackdrop) { if (it == "notes") onNotes() }
+        if (!wide) ReaderBottomNavigation("library", Modifier.align(Alignment.BottomCenter), backdrop = navigationBackdrop) { if (it == "notes") onNotes() }
     }
 
     if (showSort) ModalBottomSheet(onDismissRequest = { showSort = false }, containerColor = MaterialTheme.colorScheme.surface) {
@@ -266,17 +277,7 @@ fun LibraryScreen(
 
 @Composable
 private fun LibraryFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-        shape = RoundedCornerShape(18.dp),
-        border = if (selected) null else androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Box(Modifier.height(48.dp).padding(horizontal = 18.dp), contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.bodyLarge)
-        }
-    }
+    GlassFilterChip(selected, onClick, label = { Text(label) })
 }
 
 @Composable
@@ -303,8 +304,9 @@ private fun SearchField(value: String, onValue: (String) -> Unit, onClose: () ->
 private fun ContinueCard(item: BookWithState, onClick: () -> Unit) {
     val progress = (item.state?.progression ?: 0.0).toFloat().coerceIn(0f, 1f)
     Surface(
-        modifier = Modifier.fillMaxWidth().height(164.dp).shadow(8.dp, RoundedCornerShape(28.dp)),
-        color = ReaderColors.SurfaceDark,
+        modifier = Modifier.fillMaxWidth().height(164.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         shape = RoundedCornerShape(28.dp),
         onClick = onClick,
     ) {
@@ -312,17 +314,17 @@ private fun ContinueCard(item: BookWithState, onClick: () -> Unit) {
             BookCover(item, Modifier.width(82.dp).height(118.dp))
             Spacer(Modifier.width(18.dp))
             Column(Modifier.weight(1f)) {
-                Text(readerString("CONTINUE", "ПРОДОЛЖИТЬ"), style = MaterialTheme.typography.labelMedium, color = ReaderColors.Lime)
+                Text(readerString("CONTINUE", "ПРОДОЛЖИТЬ"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(4.dp))
-                Text(item.book.title, style = MaterialTheme.typography.titleMedium, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text("${item.book.author} · ${item.book.format}", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = .72f), maxLines = 1)
+                Text(item.book.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text("${item.book.author} · ${item.book.format}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                 Spacer(Modifier.height(10.dp))
-                ProgressBar(progress, ReaderColors.Lime)
+                ProgressBar(progress, MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.height(8.dp))
-                Text("${(progress * 100).toInt()}% · ${item.state?.chapterTitle.orEmpty()}", style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = .76f))
+                Text("${(progress * 100).toInt()}% · ${item.state?.chapterTitle.orEmpty()}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Surface(color = ReaderColors.Lime, shape = RoundedCornerShape(18.dp), modifier = Modifier.size(43.dp)) {
-                Box(contentAlignment = Alignment.Center) { ReaderIcon(R.raw.icon_continue, null, Modifier.size(24.dp), ColorFilter.tint(ReaderColors.SurfaceDark)) }
+            Surface(color = MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(50), modifier = Modifier.size(44.dp)) {
+                Box(contentAlignment = Alignment.Center) { ReaderIcon(R.raw.icon_continue, null, Modifier.size(24.dp), ColorFilter.tint(MaterialTheme.colorScheme.onPrimary)) }
             }
         }
     }
@@ -333,9 +335,9 @@ private fun BookCard(item: BookWithState, onClick: () -> Unit) {
     val progress = (item.state?.progression ?: 0.0).toFloat().coerceIn(0f, 1f)
     val attached = item.book.contentRoot.isNotBlank() && File(item.book.contentRoot).isDirectory
     Surface(
-        modifier = Modifier.fillMaxWidth().height(112.dp).shadow(4.dp, RoundedCornerShape(20.dp)),
+        modifier = Modifier.fillMaxWidth().height(120.dp),
         color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         onClick = onClick,
     ) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -353,9 +355,9 @@ private fun BookCard(item: BookWithState, onClick: () -> Unit) {
                 }
                 Spacer(Modifier.height(7.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    ProgressBar(progress, ReaderColors.Primary, Modifier.weight(1f))
+                    ProgressBar(progress, MaterialTheme.colorScheme.primary, Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
-                    Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.labelSmall, color = ReaderColors.Primary)
+                    Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
             ReaderIcon(R.raw.icon_open_book, "Open", Modifier.size(20.dp), ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant))
@@ -377,7 +379,7 @@ private fun BookCover(item: BookWithState, modifier: Modifier) {
 
 @Composable
 private fun ProgressBar(progress: Float, color: Color, modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().height(5.dp).background(Color.White.copy(alpha = .18f), RoundedCornerShape(3.dp))) {
+    Box(modifier.fillMaxWidth().height(5.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = .12f), RoundedCornerShape(3.dp))) {
         Box(Modifier.fillMaxWidth(progress.coerceAtLeast(.01f)).height(5.dp).background(color, RoundedCornerShape(3.dp)))
     }
 }
@@ -387,7 +389,7 @@ private fun EmptyLibrary(filtered: Boolean, onAdd: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(if (filtered) readerString("Nothing found", "Ничего не найдено") else readerString("Your library is empty", "Библиотека пуста"), style = MaterialTheme.typography.titleMedium)
         Text(if (filtered) readerString("Try another query", "Попробуйте другой запрос") else readerString("Add an EPUB, FB2 or TXT book to start reading", "Добавьте EPUB, FB2 или TXT, чтобы начать чтение"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (!filtered) Button(onAdd, modifier = Modifier.padding(top = 18.dp), colors = ButtonDefaults.buttonColors(containerColor = ReaderColors.Primary)) { Text(readerString("Add book", "Добавить книгу")) }
+        if (!filtered) Button(onAdd, modifier = Modifier.padding(top = 18.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text(readerString("Add book", "Добавить книгу")) }
     }
 }
 

@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import app.readbound.R
 import app.readbound.settings.ReaderPreferences
@@ -21,17 +22,17 @@ import app.readbound.settings.ReaderTheme
 import app.readbound.settings.effectiveReaderTheme
 
 object ReaderColors {
-    val Primary = Color(0xFF5B55D8)
-    val AccentContainer = Color(0xFFE7E4FF)
+    val Primary = Color(0xFF1769CC)
+    val AccentContainer = Color(0xFFDCEAFF)
     val Lime = Color(0xFFC9F36A)
     val Coral = Color(0xFFFF806C)
-    val AppBackground = Color(0xFFF7F6FF)
+    val AppBackground = Color(0xFFF2F5FA)
     val Surface = Color.White
-    val SurfaceMuted = Color(0xFFEFEFFA)
+    val SurfaceMuted = Color(0xFFE8EDF4)
     val SurfaceDark = Color(0xFF1E2030)
-    val TextPrimary = Color(0xFF202231)
-    val TextSecondary = Color(0xFF696B7A)
-    val Outline = Color(0xFFD8D7E4)
+    val TextPrimary = Color(0xFF182332)
+    val TextSecondary = Color(0xFF536174)
+    val Outline = Color(0xFFD0D9E6)
     val ReaderText = Color(0xFF342F29)
     val ReaderMuted = Color(0xFF857D72)
     val ReaderBackground = Color(0xFFFBF6EA)
@@ -71,18 +72,18 @@ private val LightScheme = lightColorScheme(
 )
 
 private val DarkScheme = darkColorScheme(
-    primary = Color(0xFFBEB9FF),
-    onPrimary = Color(0xFF272071),
-    primaryContainer = Color(0xFF3E397E),
-    onPrimaryContainer = Color(0xFFE7E4FF),
-    background = Color(0xFF171821),
-    onBackground = Color(0xFFF2F0FA),
-    surface = Color(0xFF202230),
-    onSurface = Color(0xFFF2F0FA),
-    surfaceVariant = Color(0xFF2A2C3B),
-    onSurfaceVariant = Color(0xFFC5C3D0),
-    outline = Color(0xFF8E8C9A),
-    outlineVariant = Color(0xFF454756),
+    primary = Color(0xFF9DC8FF),
+    onPrimary = Color(0xFF072E5E),
+    primaryContainer = Color(0xFF21436C),
+    onPrimaryContainer = Color(0xFFDCEAFF),
+    background = Color(0xFF101820),
+    onBackground = Color(0xFFF0F4FA),
+    surface = Color(0xFF202D3B),
+    onSurface = Color(0xFFF0F4FA),
+    surfaceVariant = Color(0xFF2C3A4B),
+    onSurfaceVariant = Color(0xFFBBC9D9),
+    outline = Color(0xFF8E9CAD),
+    outlineVariant = Color(0xFF455569),
 )
 
 @Composable
@@ -98,5 +99,15 @@ fun ReaderAppTheme(preferences: ReaderPreferences, content: @Composable () -> Un
             }
         }
     }
-    MaterialTheme(colorScheme = if (dark) DarkScheme else LightScheme, typography = AppTypography, content = content)
+    MaterialTheme(
+        colorScheme = if (dark) DarkScheme else LightScheme,
+        typography = AppTypography,
+        shapes = androidx.compose.material3.Shapes(
+            small = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            medium = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+            large = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+            extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
+        ),
+        content = content,
+    )
 }

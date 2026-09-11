@@ -1,6 +1,8 @@
 package app.readbound.ui
 
 import android.content.Intent
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -22,17 +24,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import app.readbound.ui.GlassAlertDialog as AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
+import app.readbound.ui.GlassButton as Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import app.readbound.ui.GlassFilterChip as FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import app.readbound.ui.GlassSurface as Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
+import app.readbound.ui.GlassTextField as TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +68,8 @@ import java.util.Date
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesScreen(container: AppContainer, onLibrary: () -> Unit, onOpenBook: (String) -> Unit) {
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val navigationBackdrop = rememberLayerBackdrop { drawRect(backgroundColor); drawContent() }
     val wide = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() >= 720.dp }
     val notes by container.repository.annotations.collectAsStateWithLifecycle(initialValue = emptyList())
     val tags by container.repository.tags.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -98,18 +102,18 @@ fun NotesScreen(container: AppContainer, onLibrary: () -> Unit, onOpenBook: (Str
     }
 
     Box(Modifier.fillMaxSize()) {
-        Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+        Scaffold(containerColor = Color.Transparent, contentColor = MaterialTheme.colorScheme.onBackground) { padding ->
             BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
-            if (wide) ReaderNavigationRail("notes") { if (it == "library") onLibrary() }
-            val contentWidth = if (maxWidth > 760.dp) 720.dp else maxWidth
+
+            val contentWidth = (maxWidth - if (wide) 108.dp else 0.dp).coerceAtMost(720.dp)
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(start = if (wide) 96.dp else 0.dp),
+                modifier = Modifier.fillMaxSize().padding(start = if (wide) 108.dp else 0.dp).layerBackdrop(navigationBackdrop),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp),
             ) {
                 item {
                     Column(Modifier.width(contentWidth).padding(horizontal = 20.dp, vertical = 12.dp)) {
-                        Text(readerString("YOUR THOUGHTS", "ВАШИ МЫСЛИ"), style = MaterialTheme.typography.labelMedium, color = ReaderColors.Primary)
+                        Text(readerString("YOUR THOUGHTS", "ВАШИ МЫСЛИ"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                         Text(readerString("Notes", "Заметки"), style = MaterialTheme.typography.displayLarge)
                         Text(readerString("${notes.size} highlights", "Выделений: ${notes.size}"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(18.dp))
@@ -164,7 +168,8 @@ fun NotesScreen(container: AppContainer, onLibrary: () -> Unit, onOpenBook: (Str
                 )
             }
         }
-        if (!wide) ReaderBottomNavigation("notes", Modifier.align(Alignment.BottomCenter)) { if (it == "library") onLibrary() }
+        if (wide) ReaderNavigationRail("notes", backdrop = navigationBackdrop) { if (it == "library") onLibrary() }
+        if (!wide) ReaderBottomNavigation("notes", Modifier.align(Alignment.BottomCenter), backdrop = navigationBackdrop) { if (it == "library") onLibrary() }
     }
 
     editing?.let { item ->
@@ -207,7 +212,7 @@ private fun AnnotationCard(
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(42.dp).background(accent, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                    Text(item.book.title.take(2).uppercase(), style = MaterialTheme.typography.labelMedium)
+                    Text(item.book.title.take(2).uppercase(), style = MaterialTheme.typography.labelMedium, color = ReaderColors.TextPrimary)
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
@@ -254,7 +259,7 @@ private fun AnnotationCard(
                     Text(readerString("Share", "Поделиться"), maxLines = 1, style = MaterialTheme.typography.labelSmall)
                 }
                 TextButton(onClick = onAnki, modifier = Modifier.weight(1f), contentPadding = actionPadding) {
-                    ReaderIcon(R.raw.icon_anki, null, Modifier.size(18.dp), ColorFilter.tint(ReaderColors.Primary)); Spacer(Modifier.width(2.dp)); Text("Anki", maxLines = 1, style = MaterialTheme.typography.labelSmall)
+                    ReaderIcon(R.raw.icon_anki, null, Modifier.size(18.dp), ColorFilter.tint(MaterialTheme.colorScheme.primary)); Spacer(Modifier.width(2.dp)); Text("Anki", maxLines = 1, style = MaterialTheme.typography.labelSmall)
                 }
             }
         }

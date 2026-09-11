@@ -25,18 +25,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import app.readbound.ui.GlassButton as Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.ModalBottomSheet
+import app.readbound.ui.GlassFilterChip as FilterChip
+import app.readbound.ui.GlassModalBottomSheet as ModalBottomSheet
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
+import app.readbound.ui.GlassOutlinedButton as OutlinedButton
+import app.readbound.ui.GlassSurface as Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
+import app.readbound.ui.GlassTextField as TextField
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,6 +59,10 @@ import app.readbound.settings.AnkiBackMode
 import app.readbound.settings.AnkiPreferences
 import app.readbound.ui.theme.ReaderColors
 import kotlinx.coroutines.delay
+import com.kyant.backdrop.Backdrop
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
 
 @Composable
 fun readerString(english: String, russian: String): String = if (Locale.current.language == "ru") russian else english
@@ -108,9 +113,9 @@ fun RoundIconButton(
     onClick: () -> Unit,
 ) {
     Surface(
-        modifier = modifier.size(48.dp).shadow(4.dp, RoundedCornerShape(18.dp)),
+        modifier = modifier.size(48.dp),
         color = background,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(50),
         onClick = onClick,
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -120,18 +125,17 @@ fun RoundIconButton(
 }
 
 @Composable
-fun ReaderBottomNavigation(selected: String, modifier: Modifier = Modifier, onSelect: (String) -> Unit) {
-    val shape = RoundedCornerShape(24.dp)
+fun ReaderBottomNavigation(selected: String, modifier: Modifier = Modifier, backdrop: Backdrop? = null, onSelect: (String) -> Unit) {
+    val shape = RoundedCornerShape(50)
     Box(
         modifier = modifier
+            .widthIn(max = 480.dp)
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp, vertical = 12.dp)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = .82f))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f), shape),
+            .liquidGlass(shape, backdrop = backdrop, elevated = true),
     ) {
-        Row(Modifier.height(72.dp).padding(10.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+        Row(Modifier.heightIn(min = 72.dp).padding(8.dp).selectableGroup(), horizontalArrangement = Arrangement.SpaceEvenly) {
             BottomNavigationItem("library", R.raw.icon_library, readerString("Library", "Библиотека"), selected == "library", Modifier.weight(1f), onSelect)
             Spacer(Modifier.width(8.dp))
             BottomNavigationItem("notes", R.raw.icon_notes, readerString("Notes", "Заметки"), selected == "notes", Modifier.weight(1f), onSelect)
@@ -140,23 +144,24 @@ fun ReaderBottomNavigation(selected: String, modifier: Modifier = Modifier, onSe
 }
 
 @Composable
-fun ReaderNavigationRail(selected: String, onSelect: (String) -> Unit) {
+fun ReaderNavigationRail(selected: String, backdrop: Backdrop? = null, onSelect: (String) -> Unit) {
     NavigationRail(
-        modifier = Modifier.fillMaxHeight().padding(vertical = 16.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        header = { Text("R", style = MaterialTheme.typography.headlineMedium, color = ReaderColors.Primary, modifier = Modifier.padding(vertical = 18.dp)) },
+        modifier = Modifier.fillMaxHeight().padding(start = 8.dp, top = 16.dp, bottom = 16.dp)
+            .liquidGlass(RoundedCornerShape(36.dp), backdrop = backdrop, elevated = true),
+        containerColor = Color.Transparent,
+        header = { Text("R", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 18.dp)) },
     ) {
         Column(verticalArrangement = Arrangement.Center, modifier = Modifier.weight(1f)) {
             NavigationRailItem(
                 selected = selected == "library",
                 onClick = { onSelect("library") },
-                icon = { ReaderIcon(R.raw.icon_library, "Library", Modifier.size(24.dp), ColorFilter.tint(if (selected == "library") ReaderColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant)) },
+                icon = { ReaderIcon(R.raw.icon_library, "Library", Modifier.size(24.dp), ColorFilter.tint(if (selected == "library") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)) },
                 label = { Text(readerString("Library", "Библиотека")) },
             )
             NavigationRailItem(
                 selected = selected == "notes",
                 onClick = { onSelect("notes") },
-                icon = { ReaderIcon(R.raw.icon_notes, "Notes", Modifier.size(24.dp), ColorFilter.tint(if (selected == "notes") ReaderColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant)) },
+                icon = { ReaderIcon(R.raw.icon_notes, "Notes", Modifier.size(24.dp), ColorFilter.tint(if (selected == "notes") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)) },
                 label = { Text(readerString("Notes", "Заметки")) },
             )
         }
@@ -382,16 +387,14 @@ fun AnkiExportDialog(
                 Spacer(Modifier.height(88.dp))
             }
 
-            val actionShape = RoundedCornerShape(24.dp)
+            val actionShape = RoundedCornerShape(50)
             Box(
                 Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 10.dp)
-                    .clip(actionShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = .82f))
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f), actionShape),
+                    .liquidGlass(actionShape, elevated = true),
             ) {
                 Row(
                     Modifier.fillMaxWidth().height(68.dp).padding(10.dp),
@@ -403,7 +406,7 @@ fun AnkiExportDialog(
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(18.dp),
                     ) { Text(readerString("Cancel", "Отмена")) }
-                    TextButton(
+                    Button(
                         onClick = { onSend(front.trim(), back.trim()) },
                         enabled = front.isNotBlank() && back.isNotBlank(),
                         modifier = Modifier.weight(1f).height(48.dp),
@@ -418,11 +421,7 @@ fun AnkiExportDialog(
 @Composable
 private fun AnkiCardIsland(content: @Composable ColumnScope.() -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth().border(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f),
-            RoundedCornerShape(24.dp),
-        ),
+        modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface.copy(alpha = .9f),
         shape = RoundedCornerShape(24.dp),
     ) {
@@ -445,14 +444,16 @@ private fun BottomNavigationItem(
 ) {
     Row(
         modifier = modifier
-            .then(if (selected) Modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(18.dp)) else Modifier)
-            .clickable { onSelect(id) }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .clip(RoundedCornerShape(50))
+            .then(if (selected) Modifier.liquidGlass(RoundedCornerShape(50), MaterialTheme.colorScheme.primaryContainer) else Modifier)
+            .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(id) })
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 10.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        ReaderIcon(icon, label, Modifier.size(24.dp), ColorFilter.tint(if (selected) ReaderColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant))
+        ReaderIcon(icon, label, Modifier.size(24.dp), ColorFilter.tint(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant))
         Spacer(Modifier.width(10.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = if (selected) ReaderColors.Primary else MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, style = MaterialTheme.typography.labelMedium, color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

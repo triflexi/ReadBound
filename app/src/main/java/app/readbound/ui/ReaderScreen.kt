@@ -1,5 +1,11 @@
 package app.readbound.ui
 
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color as AndroidColor
@@ -34,19 +40,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import app.readbound.ui.GlassAlertDialog as AlertDialog
+import app.readbound.ui.GlassButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import app.readbound.ui.GlassFilterChip as FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
+import app.readbound.ui.GlassModalBottomSheet as ModalBottomSheet
+import app.readbound.ui.GlassSlider as Slider
+import app.readbound.ui.GlassSurface as Surface
+import app.readbound.ui.GlassSwitch as Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
+import app.readbound.ui.GlassTextField as TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -285,6 +291,7 @@ fun ReaderScreen(container: AppContainer, bookId: String, onBack: () -> Unit) {
         ReaderTheme.SEPIA -> ReaderColors.ReaderBackground
     }
 
+    val readerBackdrop = rememberLayerBackdrop { drawRect(pageBackground); drawContent() }
     BoxWithConstraints(Modifier.fillMaxSize().background(pageBackground)) {
         val readerWidth = if (maxWidth >= 720.dp) 680.dp else maxWidth
         val currentBook = book
@@ -304,7 +311,7 @@ fun ReaderScreen(container: AppContainer, bookId: String, onBack: () -> Unit) {
                         preferences = preferences,
                         annotations = annotations.filter { it.chapterIndex == chapterIndex },
                         clearSelectionRevision = clearSelectionRevision,
-                        modifier = Modifier.width(readerWidth).fillMaxHeight(),
+                        modifier = Modifier.width(readerWidth).fillMaxHeight().layerBackdrop(readerBackdrop),
                         onProgress = { progress, offset, page, pageCount ->
                             chapterProgress = progress
                             chapterTextOffset = offset
@@ -330,6 +337,7 @@ fun ReaderScreen(container: AppContainer, bookId: String, onBack: () -> Unit) {
             if (controlsVisible) {
                 ReaderTopBar(
                     book = currentBook,
+                    backdrop = readerBackdrop,
                     bookmarked = bookmarks.any { it.chapterIndex == chapterIndex },
                     onBack = { scope.launch { persistPosition(); onBack() } },
                     onBookmark = {
@@ -340,7 +348,7 @@ fun ReaderScreen(container: AppContainer, bookId: String, onBack: () -> Unit) {
                     },
                 )
                 ReaderProgressPanel(
-                    overallProgress = globalProgress.toFloat(),
+                    overallProgress = globalProgress.toFloat(), backdrop = readerBackdrop,
                     chapterProgress = chapterProgress.toFloat(),
                     page = chapterPage,
                     pageCount = chapterPageCount,
@@ -482,7 +490,7 @@ fun ReaderScreen(container: AppContainer, bookId: String, onBack: () -> Unit) {
 @Composable
 private fun ReaderTopBar(
     book: BookEntity,
-    bookmarked: Boolean,
+    bookmarked: Boolean, backdrop: Backdrop,
     onBack: () -> Unit,
     onBookmark: () -> Unit,
 ) {
@@ -490,7 +498,7 @@ private fun ReaderTopBar(
         modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 6.dp).height(64.dp),
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(22.dp),
-        shadowElevation = 8.dp,
+        shadowElevation = 8.dp, backdrop = backdrop,
     ) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             ReaderControlIcon(R.raw.icon_back, "Back", onBack)
@@ -505,14 +513,14 @@ private fun ReaderTopBar(
 
 @Composable
 private fun ReaderControlIcon(resource: Int, description: String, onClick: () -> Unit, tint: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
-    Box(Modifier.size(43.dp).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(48.dp).clip(RoundedCornerShape(50)).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
         ReaderIcon(resource, description, Modifier.size(24.dp), ColorFilter.tint(tint))
     }
 }
 
 @Composable
 private fun ReaderProgressPanel(
-    overallProgress: Float,
+    overallProgress: Float, backdrop: Backdrop,
     chapterProgress: Float,
     page: Int,
     pageCount: Int,
@@ -536,7 +544,7 @@ private fun ReaderProgressPanel(
         modifier = modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(24.dp),
-        shadowElevation = 12.dp,
+        shadowElevation = 12.dp, backdrop = backdrop,
     ) {
         Column(Modifier.padding(horizontal = 18.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -958,7 +966,7 @@ private fun ReaderSettingsSheet(preferences: ReaderPreferences, container: AppCo
     val scope = rememberCoroutineScope()
     val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(readerString("Reading settings", "Настройки чтения"), style = MaterialTheme.typography.headlineMedium)
             Text(readerString("Theme and text appearance", "Тема и вид текста"), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(readerString("Theme", "Тема"), style = MaterialTheme.typography.labelMedium)
@@ -968,7 +976,7 @@ private fun ReaderSettingsSheet(preferences: ReaderPreferences, container: AppCo
                         modifier = Modifier.weight(1f),
                         color = when (theme) { ReaderTheme.LIGHT -> Color.White; ReaderTheme.SEPIA -> ReaderColors.ReaderBackground; ReaderTheme.DARK -> ReaderColors.SurfaceDark },
                         shape = RoundedCornerShape(18.dp),
-                        border = if (!preferences.followSystemTheme && preferences.theme == theme) androidx.compose.foundation.BorderStroke(2.dp, ReaderColors.Primary) else null,
+                        border = if (!preferences.followSystemTheme && preferences.theme == theme) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
                         onClick = { scope.launch { container.settings.updateReader { it.copy(theme = theme, followSystemTheme = false) } } },
                     ) { Column(Modifier.padding(14.dp)) { Text("Aa", color = if (theme == ReaderTheme.DARK) Color.White else ReaderColors.TextPrimary); Text(theme.name.lowercase().replaceFirstChar { it.titlecase() }, style = MaterialTheme.typography.labelMedium, color = if (theme == ReaderTheme.DARK) Color.White else ReaderColors.TextPrimary) } }
                 }
@@ -1022,7 +1030,7 @@ private fun ReaderSettingOption(label: String, selected: Boolean, modifier: Modi
         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(18.dp),
         border = androidx.compose.foundation.BorderStroke(
-            width = if (selected) 0.dp else 2.dp,
+            width = 1.dp,
             color = if (selected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant,
         ),
         onClick = onClick,
@@ -1086,9 +1094,9 @@ private fun ChapterRow(number: Int, title: String, selected: Boolean, onClick: (
         onClick = onClick,
     ) {
         Row(Modifier.height(68.dp).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(40.dp).background(if (selected) ReaderColors.Primary else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(15.dp)), contentAlignment = Alignment.Center) { Text("${number + 1}", color = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant) }
+            Box(Modifier.size(40.dp).background(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(15.dp)), contentAlignment = Alignment.Center) { Text("${number + 1}", color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant) }
             Text(title, modifier = Modifier.weight(1f).padding(start = 12.dp), maxLines = 2)
-            if (selected) ReaderIcon(R.raw.icon_current, null, Modifier.size(24.dp), ColorFilter.tint(ReaderColors.Primary))
+            if (selected) ReaderIcon(R.raw.icon_current, null, Modifier.size(24.dp), ColorFilter.tint(MaterialTheme.colorScheme.primary))
         }
     }
 }
@@ -1131,7 +1139,7 @@ private fun SelectionSheet(
                         modifier = Modifier.padding(start = 10.dp).size(if (color == id) 36.dp else 32.dp),
                         color = value,
                         shape = RoundedCornerShape(50),
-                        border = if (color == id) androidx.compose.foundation.BorderStroke(2.dp, ReaderColors.Primary) else null,
+                        border = if (color == id) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
                         onClick = { onColor(id) },
                     ) {}
                 }

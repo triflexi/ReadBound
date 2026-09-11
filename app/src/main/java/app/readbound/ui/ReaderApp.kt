@@ -55,7 +55,7 @@ fun ReaderApp(container: AppContainer) {
     BackHandler(enabled = destinationKey != "library") { navigateBack() }
 
     ReaderAppTheme(preferences) {
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        GlassBackground {
             when (destination) {
                 AppDestination.Library -> LibraryScreen(
                     container = container,

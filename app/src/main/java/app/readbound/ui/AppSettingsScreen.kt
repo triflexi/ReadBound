@@ -1,5 +1,9 @@
 package app.readbound.ui
 
+import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import androidx.compose.ui.graphics.Color
 import android.Manifest
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -10,6 +14,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -21,24 +26,25 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.AlertDialog
+import app.readbound.ui.GlassButton as Button
+import app.readbound.ui.GlassAlertDialog as AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import app.readbound.ui.GlassFilterChip as FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
+import app.readbound.ui.GlassOutlinedButton as OutlinedButton
+import app.readbound.ui.GlassSwitch as Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
+import app.readbound.ui.GlassTextField as TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -142,18 +148,21 @@ fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
         message = if (granted) "AnkiDroid connected" else "AnkiDroid permission was denied"
     }
 
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val settingsBackdrop = rememberLayerBackdrop { drawRect(backgroundColor); drawContent() }
+
     // Top island occupies status bar inset + 8.dp padding + 64.dp height; keep the first card clear of it.
     val topIslandClearance = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 96.dp
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Box(Modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(top = topIslandClearance, bottom = 32.dp),
+            modifier = Modifier.fillMaxSize().layerBackdrop(settingsBackdrop).padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(top = topIslandClearance, bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 32.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
                 SettingsCard(readerString("Appearance and language", "Оформление и язык")) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = reader.followSystemTheme,
                             onClick = { scope.launch { container.settings.updateReader { it.copy(followSystemTheme = true) } } },
@@ -292,7 +301,7 @@ fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
                     ) { Text(if (container.plugins.ankiPermissionGranted()) readerString("Permission granted", "Доступ разрешён") else readerString("Grant permission", "Разрешить доступ")) }
                     Text(readerString("Each card has editable front and back sides.", "У каждой карточки можно отредактировать лицевую и обратную стороны."), style = MaterialTheme.typography.bodyMedium)
                     Text(readerString("Default dictionary content", "Содержимое из словаря по умолчанию"), style = MaterialTheme.typography.labelMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = anki.backMode == AnkiBackMode.CONCISE,
                             onClick = { scope.launch { container.settings.updateAnki(anki.copy(backMode = AnkiBackMode.CONCISE)) } },
@@ -327,7 +336,7 @@ fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
             if (conflicts.isNotEmpty()) {
                 item { Text(readerString("Sync conflicts", "Конфликты синхронизации"), style = MaterialTheme.typography.titleMedium) }
                 items(conflicts, key = { it.id }) { conflict ->
-                    Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                    GlassSurface(shape = RoundedCornerShape(24.dp)) {
                         Column(Modifier.padding(16.dp)) {
                             Text("${conflict.recordType}: ${conflict.recordId.take(8)}", style = MaterialTheme.typography.labelLarge)
                             Text(readerString("Both devices changed this item. Choose which version to keep.", "Элемент изменён на обоих устройствах. Выберите итоговую версию."))
@@ -343,6 +352,7 @@ fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
             item { Spacer(Modifier.height(8.dp)) }
         }
         SettingsTopIsland(
+            backdrop = settingsBackdrop,
             onBack = onBack,
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -439,14 +449,12 @@ fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
 }
 
 @Composable
-private fun SettingsTopIsland(onBack: () -> Unit, modifier: Modifier = Modifier) {
+private fun SettingsTopIsland(onBack: () -> Unit, backdrop: Backdrop, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(24.dp)
     Box(
         modifier = modifier
             .height(64.dp)
-            .clip(shape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = .82f))
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .45f), shape),
+            .liquidGlass(shape, backdrop = backdrop, elevated = true),
     ) {
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
@@ -475,7 +483,7 @@ private fun SettingsTopIsland(onBack: () -> Unit, modifier: Modifier = Modifier)
 
 @Composable
 private fun SettingsCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    GlassSurface(shape = RoundedCornerShape(28.dp)) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             content()
