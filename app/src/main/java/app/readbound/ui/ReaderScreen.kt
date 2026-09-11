@@ -3,8 +3,6 @@ package app.readbound.ui
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -51,7 +49,7 @@ import app.readbound.ui.GlassSlider as Slider
 import app.readbound.ui.GlassSurface as Surface
 import app.readbound.ui.GlassSwitch as Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import app.readbound.ui.GlassTextButton as TextButton
 import app.readbound.ui.GlassTextField as TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -379,10 +377,14 @@ fun ReaderScreen(container: AppContainer, bookId: String, onBack: () -> Unit) {
         )
     }
 
-    if (settingsVisible) ReaderSettingsSheet(preferences, container, onDismiss = {
-        settingsVisible = false
-        controlsVisible = true
-    })
+    if (settingsVisible) ReaderSettingsSheet(
+        preferences = preferences,
+        onApply = { next -> scope.launch { container.settings.updateReader { next } } },
+        onDismiss = {
+            settingsVisible = false
+            controlsVisible = true
+        },
+    )
     if (contentsVisible && publication != null) ContentsSheet(
         publication = publication,
         current = chapterIndex,
@@ -969,21 +971,26 @@ private fun readerScript(preferences: ReaderPreferences, darkTheme: Boolean, ini
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ReaderSettingsSheet(preferences: ReaderPreferences, container: AppContainer, onDismiss: () -> Unit) {
-    val scope = rememberCoroutineScope()
+private fun ReaderSettingsSheet(
+    preferences: ReaderPreferences,
+    onApply: (ReaderPreferences) -> Unit,
+    onDismiss: () -> Unit,
+) {
     var draft by remember { mutableStateOf(preferences) }
     fun stage(next: ReaderPreferences) {
         draft = next
     }
     fun close() {
-        scope.launch {
-            if (draft != preferences) container.settings.updateReader { draft }
-            onDismiss()
-        }
+        val changed = draft != preferences
+        onDismiss()
+        if (changed) onApply(draft)
     }
     val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = ::close, sheetState = sheetState, containerColor = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
             Text(readerString("Reading settings", "Настройки чтения"), style = MaterialTheme.typography.headlineMedium)
             Text(readerString("Theme and text appearance", "Тема и вид текста"), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(readerString("Theme", "Тема"), style = MaterialTheme.typography.labelMedium)
@@ -1018,46 +1025,28 @@ private fun ReaderSettingsSheet(preferences: ReaderPreferences, container: AppCo
                 valueRange = 1.1f..2.2f,
             )
             Text(readerString("Page margins", "Поля страницы"))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    12 to readerString("Narrow", "Узкие"),
-                    24 to readerString("Medium", "Средние"),
-                    40 to readerString("Wide", "Широкие"),
-                ).forEach { (value, label) ->
-                    ReaderSettingOption(label, draft.margin == value, Modifier.weight(1f)) {
-                        stage(draft.copy(margin = value))
-                    }
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ReadingMode.entries.forEach { mode ->
-                    ReaderSettingOption(
-                        if (mode == ReadingMode.PAGED) readerString("Pages", "Страницы") else readerString("Scroll", "Прокрутка"),
-                        draft.readingMode == mode,
-                        Modifier.weight(1f),
-                    ) { stage(draft.copy(readingMode = mode)) }
-                }
-            }
+            val margins = listOf(12, 24, 40)
+            GlassSegmentedControl(
+                labels = listOf(
+                    readerString("Narrow", "Узкие"),
+                    readerString("Medium", "Средние"),
+                    readerString("Wide", "Широкие"),
+                ),
+                selectedIndex = margins.indexOf(draft.margin).coerceAtLeast(0),
+                onSelected = { stage(draft.copy(margin = margins[it])) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            val readingModes = ReadingMode.entries
+            GlassSegmentedControl(
+                labels = readingModes.map { mode ->
+                    if (mode == ReadingMode.PAGED) readerString("Pages", "Страницы") else readerString("Scroll", "Прокрутка")
+                },
+                selectedIndex = readingModes.indexOf(draft.readingMode).coerceAtLeast(0),
+                onSelected = { stage(draft.copy(readingMode = readingModes[it])) },
+                modifier = Modifier.fillMaxWidth(),
+            )
             Button(onClick = ::close, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(19.dp)) { Text(readerString("Done", "Готово")) }
             Spacer(Modifier.height(22.dp))
-        }
-    }
-}
-
-@Composable
-private fun ReaderSettingOption(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Surface(
-        modifier = modifier.height(52.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(18.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            width = 1.dp,
-            color = if (selected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant,
-        ),
-        onClick = onClick,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }

@@ -170,6 +170,7 @@ fun GlassButton(
                 enabled = enabled,
                 tint = if (container == MaterialTheme.colorScheme.primary) container else Color.Unspecified,
                 surfaceColor = container.copy(alpha = if (container == MaterialTheme.colorScheme.surface) .34f else .88f),
+                contentPadding = contentPadding,
             ) { content() }
         }
     }
@@ -185,6 +186,30 @@ fun GlassOutlinedButton(
     containerColor = MaterialTheme.colorScheme.surface,
     contentColor = MaterialTheme.colorScheme.primary,
 ), content = content)
+
+@Composable
+fun GlassTextButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    shape: Shape = RoundedCornerShape(50),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp),
+    content: @Composable RowScope.() -> Unit,
+) {
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
+        ProvideTextStyle(MaterialTheme.typography.labelLarge) {
+            RepositoryLiquidButton(
+                onClick = onClick,
+                backdrop = LocalGlassBackdrop.current,
+                modifier = modifier,
+                enabled = enabled,
+                surfaceColor = MaterialTheme.colorScheme.surface.copy(alpha = .10f),
+                contentPadding = contentPadding,
+                content = content,
+            )
+        }
+    }
+}
 
 @Composable
 fun GlassFilterChip(
@@ -240,7 +265,32 @@ fun GlassSwitch(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?, modifie
     RepositoryLiquidToggle(checked, onCheckedChange, LocalGlassBackdrop.current, modifier)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GlassSegmentedControl(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (labels.isEmpty()) return
+    RepositoryLiquidBottomTabs(
+        selectedTabIndex = selectedIndex.coerceIn(labels.indices),
+        onTabSelected = onSelected,
+        backdrop = LocalGlassBackdrop.current,
+        tabsCount = labels.size,
+        modifier = modifier,
+    ) {
+        labels.forEachIndexed { index, label ->
+            RepositoryLiquidBottomTab(
+                selected = index == selectedIndex,
+                onClick = { onSelected(index) },
+            ) {
+                Text(label, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
 @Composable
 fun GlassSlider(
     value: Float,
@@ -249,19 +299,13 @@ fun GlassSlider(
     onValueChangeFinished: (() -> Unit)? = null,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
 ) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val trackBackdrop = rememberLayerBackdrop()
-    Slider(value, onValueChange, modifier.heightIn(min = 48.dp),
+    RepositoryLiquidSlider(
+        value = value,
+        onValueChange = onValueChange,
         onValueChangeFinished = onValueChangeFinished, valueRange = valueRange,
-        interactionSource = interaction,
-        thumb = {
-            RepositoryLiquidSliderThumb(LocalGlassBackdrop.current, trackBackdrop, pressed)
-        },
-        track = { state -> SliderDefaults.Track(state,
-            thumbTrackGapSize = 0.dp, drawStopIndicator = null,
-            modifier = Modifier.height(6.dp).layerBackdrop(trackBackdrop),
-            colors = SliderDefaults.colors(inactiveTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .13f))) },
+        visibilityThreshold = .001f,
+        backdrop = LocalGlassBackdrop.current,
+        modifier = modifier.fillMaxWidth(),
     )
 }
 
@@ -286,7 +330,13 @@ fun GlassModalBottomSheet(
         ) {
             // Draw inside the anchored sheet. An outer draw modifier paints at
             // the unshifted origin while Material moves the sheet for gestures.
-            Column(Modifier.fillMaxWidth().liquidGlass(shape, containerColor, backdrop = null)) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(containerColor, shape)
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = .34f), shape)
+                    .clip(shape),
+            ) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = androidx.compose.ui.Alignment.Center) {
                     BottomSheetDefaults.DragHandle()
                 }

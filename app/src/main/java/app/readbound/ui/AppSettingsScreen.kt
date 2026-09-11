@@ -43,7 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import app.readbound.ui.GlassOutlinedButton as OutlinedButton
 import app.readbound.ui.GlassSwitch as Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import app.readbound.ui.GlassTextButton as TextButton
 import app.readbound.ui.GlassTextField as TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue

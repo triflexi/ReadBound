@@ -37,7 +37,7 @@ import androidx.compose.material3.NavigationRailItem
 import app.readbound.ui.GlassOutlinedButton as OutlinedButton
 import app.readbound.ui.GlassSurface as Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import app.readbound.ui.GlassTextButton as TextButton
 import app.readbound.ui.GlassTextField as TextField
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -125,6 +125,7 @@ fun RoundIconButton(
 fun ReaderBottomNavigation(selected: String, modifier: Modifier = Modifier, backdrop: Backdrop? = null, onSelect: (String) -> Unit) {
     RepositoryLiquidBottomTabs(
         selectedTabIndex = if (selected == "notes") 1 else 0,
+        onTabSelected = { index -> onSelect(if (index == 1) "notes" else "library") },
         backdrop = backdrop,
         tabsCount = 2,
         modifier = modifier

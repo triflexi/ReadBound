@@ -28,11 +28,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import app.readbound.ui.GlassModalBottomSheet as ModalBottomSheet
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import app.readbound.ui.GlassSurface as Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import app.readbound.ui.GlassTextButton as TextButton
 import app.readbound.ui.GlassTextField as TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -255,13 +254,12 @@ fun LibraryScreen(
             Text(readerString("How to arrange the library", "Порядок книг в библиотеке"), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(20.dp))
             LibrarySort.entries.forEach { option ->
-                Row(
-                    Modifier.fillMaxWidth().clickable { sort = option }.padding(vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(sort == option, onClick = { sort = option })
-                    Text(option.fullLabel(), modifier = Modifier.padding(start = 8.dp))
-                }
+                GlassFilterChip(
+                    selected = sort == option,
+                    onClick = { sort = option },
+                    label = { Text(option.fullLabel()) },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                )
             }
             Spacer(Modifier.height(16.dp))
             Button(
