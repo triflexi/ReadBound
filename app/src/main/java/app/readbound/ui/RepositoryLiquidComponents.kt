@@ -37,7 +37,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -46,12 +45,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
@@ -62,7 +59,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.role
@@ -91,7 +87,6 @@ import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import com.kyant.shapes.Capsule
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -428,9 +423,7 @@ internal fun RepositoryLiquidBottomTabs(
 ) {
     val resolvedBackdrop = backdrop ?: emptyBackdrop()
     val isLight = androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() > .5f
-    val accent = if (isLight) Color(0xFF0088FF) else Color(0xFF0091FF)
     val container = if (isLight) Color(0xFFFAFAFA).copy(alpha = .40f) else Color(0xFF121212).copy(alpha = .40f)
-    val tabsBackdrop = rememberLayerBackdrop()
 
     BoxWithConstraints(modifier, contentAlignment = Alignment.CenterStart) {
         val density = LocalDensity.current
@@ -444,7 +437,6 @@ internal fun RepositoryLiquidBottomTabs(
         }
         val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
         val animationScope = rememberCoroutineScope()
-        var currentIndex by remember { mutableIntStateOf(selectedTabIndex) }
         val damped = remember(animationScope, tabsCount) {
             RepositoryDampedDragAnimation(
                 animationScope = animationScope,
@@ -455,8 +447,9 @@ internal fun RepositoryLiquidBottomTabs(
                 pressedScale = 78f / 56f,
                 onDragStarted = {},
                 onDragStopped = {
-                    currentIndex = targetValue.fastRoundToInt().fastCoerceIn(0, tabsCount - 1)
-                    animateToValue(currentIndex.toFloat())
+                    val nextIndex = targetValue.fastRoundToInt().fastCoerceIn(0, tabsCount - 1)
+                    animateToValue(nextIndex.toFloat())
+                    onTabSelected(nextIndex)
                     animationScope.launch { offsetAnimation.animateTo(0f, spring(1f, 300f, .5f)) }
                 },
                 onDrag = { _, amount ->
@@ -465,12 +458,9 @@ internal fun RepositoryLiquidBottomTabs(
                 },
             )
         }
-        LaunchedEffect(selectedTabIndex) { currentIndex = selectedTabIndex }
-        LaunchedEffect(damped) {
-            snapshotFlow { currentIndex }.drop(1).collectLatest { index ->
-                damped.animateToValue(index.toFloat())
-                onTabSelected(index)
-            }
+        LaunchedEffect(selectedTabIndex, damped) {
+            val target = selectedTabIndex.coerceIn(0, tabsCount - 1).toFloat()
+            if (abs(damped.targetValue - target) > .001f) damped.animateToValue(target)
         }
         val interactiveHighlight = remember(animationScope) {
             RepositoryInteractiveHighlight(animationScope) { size, _ ->
@@ -481,50 +471,25 @@ internal fun RepositoryLiquidBottomTabs(
             }
         }
 
-        Row(
-            Modifier
-                .graphicsLayer { translationX = panelOffset }
-                .drawBackdrop(
-                    backdrop = resolvedBackdrop,
-                    shape = { Capsule() },
-                    effects = { vibrancy(); blur(8.dp.toPx()); lens(24.dp.toPx(), 24.dp.toPx()) },
-                    layerBlock = {
-                        val scale = lerp(1f, 1f + 16.dp.toPx() / size.width, damped.pressProgress)
-                        scaleX = scale; scaleY = scale
-                    },
-                    onDrawSurface = { drawRect(container) },
-                )
-                .then(interactiveHighlight.modifier)
-                .height(64.dp)
-                .fillMaxWidth()
-                .padding(4.dp)
-                .selectableGroup(),
-            verticalAlignment = Alignment.CenterVertically,
-            content = content,
-        )
-
         CompositionLocalProvider(LocalLiquidTabScale provides { lerp(1f, 1.2f, damped.pressProgress) }) {
             Row(
                 Modifier
-                    .clearAndSetSemantics { }
-                    .alpha(0f)
-                    .layerBackdrop(tabsBackdrop)
                     .graphicsLayer { translationX = panelOffset }
                     .drawBackdrop(
                         backdrop = resolvedBackdrop,
                         shape = { Capsule() },
-                        effects = {
-                            vibrancy(); blur(8.dp.toPx())
-                            lens(24.dp.toPx() * damped.pressProgress, 24.dp.toPx() * damped.pressProgress)
+                        effects = { vibrancy(); blur(8.dp.toPx()); lens(24.dp.toPx(), 24.dp.toPx()) },
+                        layerBlock = {
+                            val scale = lerp(1f, 1f + 16.dp.toPx() / size.width, damped.pressProgress)
+                            scaleX = scale; scaleY = scale
                         },
-                        highlight = { Highlight.Default.copy(alpha = damped.pressProgress) },
                         onDrawSurface = { drawRect(container) },
                     )
                     .then(interactiveHighlight.modifier)
-                    .height(56.dp)
+                    .height(64.dp)
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp)
-                    .graphicsLayer(colorFilter = ColorFilter.tint(accent)),
+                    .padding(4.dp)
+                    .selectableGroup(),
                 verticalAlignment = Alignment.CenterVertically,
                 content = content,
             )
@@ -539,7 +504,7 @@ internal fun RepositoryLiquidBottomTabs(
                 .then(interactiveHighlight.gestureModifier)
                 .then(damped.modifier)
                 .drawBackdrop(
-                    backdrop = rememberCombinedBackdrop(resolvedBackdrop, tabsBackdrop),
+                    backdrop = resolvedBackdrop,
                     shape = { Capsule() },
                     effects = { lens(10.dp.toPx() * damped.pressProgress, 14.dp.toPx() * damped.pressProgress, chromaticAberration = true) },
                     highlight = { Highlight.Default.copy(alpha = damped.pressProgress) },

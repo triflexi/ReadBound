@@ -293,37 +293,29 @@ fun AnkiExportDialog(
                                     }
                                 }
                             }
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilterChip(
-                                    selected = localPreferences.backMode == AnkiBackMode.CONCISE && selectedOption != null && selectedBlockIds == defaultDictionaryBlockIds(selectedOption, AnkiBackMode.CONCISE) && manualBack == null,
-                                    onClick = {
-                                        val option = selectedOption ?: return@FilterChip
-                                        val next = localPreferences.copy(backMode = AnkiBackMode.CONCISE)
+                            GlassSegmentedControl(
+                                labels = listOf(
+                                    readerString("Concise", "Кратко"),
+                                    readerString("Full article", "Вся статья"),
+                                ),
+                                selectedIndex = if (localPreferences.backMode == AnkiBackMode.ARTICLE) 1 else 0,
+                                onSelected = { index ->
+                                    selectedOption?.let { option ->
+                                        val mode = if (index == 1) AnkiBackMode.ARTICLE else AnkiBackMode.CONCISE
+                                        val next = localPreferences.copy(backMode = mode)
                                         updatePreferences(next)
-                                        selectedBlockIds = defaultDictionaryBlockIds(option, next.backMode)
+                                        selectedBlockIds = defaultDictionaryBlockIds(option, mode)
                                         manualBack = null
                                         editingManually = false
-                                    },
-                                    label = { Text(readerString("Concise", "Кратко")) },
-                                )
-                                FilterChip(
-                                    selected = localPreferences.backMode == AnkiBackMode.ARTICLE && selectedOption != null && selectedBlockIds == defaultDictionaryBlockIds(selectedOption, AnkiBackMode.ARTICLE) && manualBack == null,
-                                    onClick = {
-                                        val option = selectedOption ?: return@FilterChip
-                                        val next = localPreferences.copy(backMode = AnkiBackMode.ARTICLE)
-                                        updatePreferences(next)
-                                        selectedBlockIds = defaultDictionaryBlockIds(option, next.backMode)
-                                        manualBack = null
-                                        editingManually = false
-                                    },
-                                    label = { Text(readerString("Full article", "Вся статья")) },
-                                )
-                                FilterChip(
-                                    selected = detailsExpanded,
-                                    onClick = { detailsExpanded = !detailsExpanded },
-                                    label = { Text(readerString("Details", "Состав")) },
-                                )
-                            }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            FilterChip(
+                                selected = detailsExpanded,
+                                onClick = { detailsExpanded = !detailsExpanded },
+                                label = { Text(readerString("Details", "Состав")) },
+                            )
                             if (detailsExpanded && selectedOption != null) {
                                 Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
                                     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {

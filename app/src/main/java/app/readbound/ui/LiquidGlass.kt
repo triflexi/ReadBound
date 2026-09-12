@@ -9,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -293,6 +294,47 @@ fun GlassIconButton(
     }
 }
 
+/** Pressable content for an existing glass island; it deliberately draws no second island. */
+@Composable
+fun GlassInlineButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    shape: Shape = RoundedCornerShape(18.dp),
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        if (pressed) .90f else 1f,
+        spring(dampingRatio = .58f, stiffness = 520f),
+        label = "inline glass press",
+    )
+    val foreground by animateColorAsState(
+        if (enabled) contentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .72f),
+        tween(220),
+        label = "inline glass content",
+    )
+    CompositionLocalProvider(LocalContentColor provides foreground) {
+        Box(
+            modifier
+                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .clip(shape)
+                .clickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    enabled = enabled,
+                    role = Role.Button,
+                    onClick = onClick,
+                ),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+            content = content,
+        )
+    }
+}
+
 /** A consistent dropdown/selector affordance with the same spring and drag response as demo buttons. */
 @Composable
 fun GlassDropdownButton(
@@ -388,18 +430,38 @@ fun GlassFilterChip(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val tint by animateColorAsState(
+    val container by animateColorAsState(
         if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        tween(280),
         label = "glass selection",
     )
-    GlassSurface(modifier = modifier.heightIn(min = 48.dp).semantics { this.selected = selected },
-        shape = RoundedCornerShape(50), color = tint,
-        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-        onClick = onClick, enabled = enabled,
-        border = if (selected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .32f)) else null,
-    ) {
-        Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
-            ProvideTextStyle(MaterialTheme.typography.labelLarge, content = label)
+    val foreground by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        tween(240),
+        label = "glass selection content",
+    )
+    val shape = RoundedCornerShape(50)
+    CompositionLocalProvider(LocalContentColor provides foreground) {
+        ProvideTextStyle(MaterialTheme.typography.labelLarge) {
+            RepositoryLiquidButton(
+                onClick = onClick,
+                backdrop = LocalGlassBackdrop.current,
+                modifier = modifier
+                    .heightIn(min = 48.dp)
+                    .semantics { this.selected = selected }
+                    .then(
+                        if (selected) Modifier.border(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = .34f),
+                            shape,
+                        ) else Modifier,
+                    ),
+                enabled = enabled,
+                shape = shape,
+                surfaceColor = container.copy(alpha = if (selected) .64f else .42f),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                content = { label() },
+            )
         }
     }
 }
@@ -450,11 +512,16 @@ fun GlassSegmentedControl(
         modifier = modifier,
     ) {
         labels.forEachIndexed { index, label ->
+            val foreground by animateColorAsState(
+                if (index == selectedIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                tween(240),
+                label = "segment content $index",
+            )
             RepositoryLiquidBottomTab(
                 selected = index == selectedIndex,
                 onClick = { onSelected(index) },
             ) {
-                Text(label, style = MaterialTheme.typography.labelLarge)
+                Text(label, style = MaterialTheme.typography.labelLarge, color = foreground)
             }
         }
     }
