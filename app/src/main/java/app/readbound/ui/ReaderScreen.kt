@@ -35,8 +35,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import app.readbound.ui.GlassAlertDialog as AlertDialog
 import app.readbound.ui.GlassButton as Button
@@ -528,9 +526,10 @@ private fun ReaderTopBar(
 
 @Composable
 private fun ReaderControlIcon(resource: Int, description: String, onClick: () -> Unit, tint: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
-    GlassInlineButton(
+    GlassIconButton(
         onClick = onClick,
         modifier = Modifier.size(48.dp),
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .08f),
         contentColor = tint,
     ) {
         ReaderIcon(resource, description, Modifier.size(24.dp), ColorFilter.tint(tint))
@@ -1003,11 +1002,7 @@ private fun ReaderSettingsSheet(
     val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = ::close, sheetState = sheetState, containerColor = MaterialTheme.colorScheme.surface) {
         Column(
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 6.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(readerString("Reading settings", "Настройки чтения"), style = MaterialTheme.typography.headlineMedium)
@@ -1036,19 +1031,11 @@ private fun ReaderSettingsSheet(
                     onClick = { stage(draft.copy(fontFamily = if (draft.fontFamily == "Literata") "Sans" else "Literata")) },
                     modifier = Modifier.weight(1f),
                 )
-                Surface(Modifier.width(136.dp), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
-                    Row(Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically) {
-                        GlassInlineButton(
-                            onClick = { stage(draft.copy(fontSize = (draft.fontSize - 1).coerceAtLeast(12))) },
-                            enabled = draft.fontSize > 12,
-                            modifier = Modifier.size(48.dp),
-                        ) { Text("−", style = MaterialTheme.typography.titleMedium) }
-                        Text("${draft.fontSize}", modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                        GlassInlineButton(
-                            onClick = { stage(draft.copy(fontSize = (draft.fontSize + 1).coerceAtMost(36))) },
-                            enabled = draft.fontSize < 36,
-                            modifier = Modifier.size(48.dp),
-                        ) { Text("+", style = MaterialTheme.typography.titleMedium) }
+                Surface(Modifier.width(120.dp), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
+                    Row(Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+                        TextButton(onClick = { stage(draft.copy(fontSize = (draft.fontSize - 1).coerceAtLeast(12))) }) { Text("−") }
+                        Text("${draft.fontSize}")
+                        TextButton(onClick = { stage(draft.copy(fontSize = (draft.fontSize + 1).coerceAtMost(36))) }) { Text("+") }
                     }
                 }
             }
@@ -1079,8 +1066,8 @@ private fun ReaderSettingsSheet(
                 onSelected = { stage(draft.copy(readingMode = readingModes[it])) },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(onClick = ::close, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(19.dp)) { Text(readerString("Done", "Готово")) }
-            Spacer(Modifier.height(12.dp))
+            Button(onClick = ::close, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(19.dp)) { Text(readerString("Done", "Готово")) }
+            Spacer(Modifier.height(22.dp))
         }
     }
 }

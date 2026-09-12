@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -193,7 +193,6 @@ private fun AnnotationCard(
     onAnki: () -> Unit,
 ) {
     val context = LocalContext.current
-    val copiedMessage = readerString("Copied", "Скопировано")
     var itemTags by remember(item.annotation.id) { mutableStateOf<List<TagEntity>>(emptyList()) }
     LaunchedEffect(item.annotation.id, selectedTag) { itemTags = container.repository.tagsForAnnotation(item.annotation.id) }
     if (selectedTag != null && itemTags.none { it.id == selectedTag }) return
@@ -243,45 +242,25 @@ private fun AnnotationCard(
             if (itemTags.isNotEmpty()) FlowRow(Modifier.padding(start = 18.dp, top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 itemTags.forEach { tag -> GlassLabelChip(label = { Text(tag.name) }) }
             }
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(20.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) {
-                Row(Modifier.fillMaxWidth().padding(4.dp)) {
-                    NoteCardAction(R.raw.icon_note, readerString("Edit", "Изменить"), onEdit)
-                    NoteCardAction(R.raw.icon_copy, readerString("Copy", "Копировать")) {
-                        (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
-                            .setPrimaryClip(android.content.ClipData.newPlainText("quote", item.annotation.quote))
-                        onMessage(copiedMessage)
-                    }
-                    NoteCardAction(R.raw.icon_share, readerString("Share", "Поделиться")) {
-                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, item.annotation.quote)
-                        }, null))
-                    }
-                    NoteCardAction(R.raw.icon_anki, "Anki", onAnki)
+                val actionPadding = PaddingValues(horizontal = 2.dp, vertical = 8.dp)
+                TextButton(onClick = onEdit, modifier = Modifier.weight(1f), contentPadding = actionPadding) {
+                    Text(readerString("Edit", "Изменить"), maxLines = 1, style = MaterialTheme.typography.labelSmall)
+                }
+                TextButton(onClick = { (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("quote", item.annotation.quote)); onMessage("Copied") }, modifier = Modifier.weight(1f), contentPadding = actionPadding) {
+                    Text(readerString("Copy", "Копировать"), maxLines = 1, style = MaterialTheme.typography.labelSmall)
+                }
+                TextButton(onClick = {
+                    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, item.annotation.quote) }, null))
+                }, modifier = Modifier.weight(1f), contentPadding = actionPadding) {
+                    Text(readerString("Share", "Поделиться"), maxLines = 1, style = MaterialTheme.typography.labelSmall)
+                }
+                TextButton(onClick = onAnki, modifier = Modifier.weight(1f), contentPadding = actionPadding) {
+                    ReaderIcon(R.raw.icon_anki, null, Modifier.size(18.dp), ColorFilter.tint(MaterialTheme.colorScheme.primary)); Spacer(Modifier.width(2.dp)); Text("Anki", maxLines = 1, style = MaterialTheme.typography.labelSmall)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun RowScope.NoteCardAction(
-    icon: Int,
-    label: String,
-    onClick: () -> Unit,
-) {
-    GlassInlineButton(
-        onClick = onClick,
-        modifier = Modifier.weight(1f).height(58.dp),
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            ReaderIcon(icon, label, Modifier.size(18.dp), ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant))
-            Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
