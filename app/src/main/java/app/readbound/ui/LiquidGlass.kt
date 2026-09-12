@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -11,16 +12,19 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -31,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.readbound.R
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -126,7 +131,7 @@ fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(24.dp),
     color: Color = MaterialTheme.colorScheme.surface,
-    contentColor: Color = contentColorFor(color),
+    contentColor: Color = glassContentColorFor(color),
     border: BorderStroke? = null,
     shadowElevation: Dp = 0.dp,
     backdrop: Backdrop? = LocalGlassBackdrop.current,
@@ -136,16 +141,37 @@ fun GlassSurface(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) .97f else 1f, spring(), label = "glass press")
+    val scale by animateFloatAsState(if (pressed) .965f else 1f, spring(dampingRatio = .62f, stiffness = 420f), label = "glass press")
+    val animatedColor by animateColorAsState(color, tween(360), label = "glass surface color")
+    val animatedContentColor by animateColorAsState(contentColor, tween(360), label = "glass content color")
     val glass = modifier.graphicsLayer { scaleX = scale; scaleY = scale }
-        .liquidGlass(shape, color, backdrop, shadowElevation > 0.dp)
+        .liquidGlass(shape, animatedColor, backdrop, shadowElevation > 0.dp)
         .then(if (border != null) Modifier.border(border, shape) else Modifier)
     if (onClick != null) {
         Surface(onClick = onClick, enabled = enabled, modifier = glass, shape = shape,
-            color = Color.Transparent, contentColor = contentColor, interactionSource = interaction, content = content)
+            color = Color.Transparent, contentColor = animatedContentColor, interactionSource = interaction, content = content)
     } else {
         Surface(modifier = glass, shape = shape, color = Color.Transparent,
-            contentColor = contentColor, content = content)
+            contentColor = animatedContentColor, content = content)
+    }
+}
+
+@Composable
+private fun glassContentColorFor(color: Color): Color {
+    val scheme = MaterialTheme.colorScheme
+    fun Color.matches(other: Color) =
+        kotlin.math.abs(red - other.red) < .002f &&
+            kotlin.math.abs(green - other.green) < .002f &&
+            kotlin.math.abs(blue - other.blue) < .002f
+    return when {
+        color.matches(scheme.primary) -> scheme.onPrimary
+        color.matches(scheme.primaryContainer) -> scheme.onPrimaryContainer
+        color.matches(scheme.error) -> scheme.onError
+        color.matches(scheme.errorContainer) -> scheme.onErrorContainer
+        color.matches(scheme.inverseSurface) -> scheme.inverseOnSurface
+        color.matches(scheme.surfaceVariant) -> scheme.onSurfaceVariant
+        color.matches(scheme.background) -> scheme.onBackground
+        else -> scheme.onSurface
     }
 }
 
@@ -155,21 +181,36 @@ fun GlassButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     shape: Shape = RoundedCornerShape(50),
-    colors: ButtonColors = ButtonDefaults.buttonColors(),
+    colors: ButtonColors = ButtonDefaults.buttonColors(
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .72f),
+    ),
     contentPadding: PaddingValues = PaddingValues(horizontal = 22.dp, vertical = 12.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
-    val container = if (enabled) colors.containerColor else colors.disabledContainerColor
-    val foreground = if (enabled) colors.contentColor else colors.disabledContentColor
+    val targetContainer = if (enabled) colors.containerColor else colors.disabledContainerColor
+    val targetForeground = if (enabled) colors.contentColor else colors.disabledContentColor.copy(alpha = colors.disabledContentColor.alpha.coerceAtLeast(.72f))
+    val container by animateColorAsState(targetContainer, tween(280), label = "glass button surface")
+    val foreground by animateColorAsState(targetForeground, tween(280), label = "glass button content")
+    val backdrop = LocalGlassBackdrop.current
+    val prominent = container.copy(alpha = 1f) == MaterialTheme.colorScheme.primary.copy(alpha = 1f)
+    val surfaceAlpha = when {
+        backdrop == null -> .94f
+        prominent -> .82f
+        else -> .68f
+    }
     CompositionLocalProvider(LocalContentColor provides foreground) {
         ProvideTextStyle(MaterialTheme.typography.labelLarge) {
             RepositoryLiquidButton(
                 onClick = onClick,
-                backdrop = LocalGlassBackdrop.current,
+                backdrop = backdrop,
                 modifier = modifier.defaultMinSize(minHeight = 48.dp).semantics { role = Role.Button },
                 enabled = enabled,
-                tint = if (container == MaterialTheme.colorScheme.primary) container else Color.Unspecified,
-                surfaceColor = container.copy(alpha = if (container == MaterialTheme.colorScheme.surface) .34f else .88f),
+                shape = shape,
+                tint = if (prominent) container.copy(alpha = .72f) else Color.Unspecified,
+                surfaceColor = container.copy(alpha = surfaceAlpha),
                 contentPadding = contentPadding,
             ) { content() }
         }
@@ -181,11 +222,15 @@ fun GlassOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    shape: Shape = RoundedCornerShape(50),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
     content: @Composable RowScope.() -> Unit,
-) = GlassButton(onClick, modifier, enabled, colors = ButtonDefaults.buttonColors(
-    containerColor = MaterialTheme.colorScheme.surface,
-    contentColor = MaterialTheme.colorScheme.primary,
-), content = content)
+) = GlassButton(onClick, modifier, enabled, shape = shape, colors = ButtonDefaults.buttonColors(
+    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+    contentColor = MaterialTheme.colorScheme.onSurface,
+    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .72f),
+), contentPadding = contentPadding, content = content)
 
 @Composable
 fun GlassTextButton(
@@ -193,20 +238,144 @@ fun GlassTextButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     shape: Shape = RoundedCornerShape(50),
+    contentColor: Color = MaterialTheme.colorScheme.primary,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
-    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
+    val targetColor = if (enabled) contentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .72f)
+    val foreground by animateColorAsState(targetColor, tween(280), label = "glass text button content")
+    CompositionLocalProvider(LocalContentColor provides foreground) {
         ProvideTextStyle(MaterialTheme.typography.labelLarge) {
             RepositoryLiquidButton(
                 onClick = onClick,
                 backdrop = LocalGlassBackdrop.current,
                 modifier = modifier,
                 enabled = enabled,
+                shape = shape,
                 surfaceColor = MaterialTheme.colorScheme.surface.copy(alpha = .10f),
                 contentPadding = contentPadding,
                 content = content,
             )
+        }
+    }
+}
+
+/** Compact repository-backed button used by toolbar, FAB and sheet actions. */
+@Composable
+fun GlassIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    contentColor: Color = glassContentColorFor(containerColor),
+    elevated: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    val shape = RoundedCornerShape(50)
+    val backdrop = LocalGlassBackdrop.current
+    val foreground by animateColorAsState(
+        if (enabled) contentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .72f),
+        tween(280),
+        label = "glass icon content",
+    )
+    CompositionLocalProvider(LocalContentColor provides foreground) {
+        RepositoryLiquidButton(
+            onClick = onClick,
+            backdrop = backdrop,
+            modifier = modifier
+                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                .then(if (elevated) Modifier.shadow(10.dp, shape, clip = false) else Modifier),
+            enabled = enabled,
+            shape = shape,
+            surfaceColor = containerColor.copy(alpha = if (backdrop == null) .94f else .68f),
+            contentPadding = PaddingValues(0.dp),
+        ) { content() }
+    }
+}
+
+/** A consistent dropdown/selector affordance with the same spring and drag response as demo buttons. */
+@Composable
+fun GlassDropdownButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    expanded: Boolean = false,
+) {
+    val rotation by animateFloatAsState(if (expanded) 180f else 0f, spring(dampingRatio = .7f, stiffness = 500f), label = "selector arrow")
+    GlassOutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = RoundedCornerShape(18.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+    ) {
+        Text(label, modifier = Modifier.weight(1f), maxLines = 1)
+        ReaderIcon(
+            R.raw.icon_chevron,
+            null,
+            Modifier.size(18.dp).rotate(rotation),
+            ColorFilter.tint(LocalContentColor.current),
+        )
+    }
+}
+
+/** Non-interactive glass pill for metadata such as note tags. */
+@Composable
+fun GlassLabelChip(label: @Composable () -> Unit, modifier: Modifier = Modifier) {
+    GlassSurface(
+        modifier = modifier.heightIn(min = 32.dp),
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Box(Modifier.padding(horizontal = 12.dp, vertical = 6.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            ProvideTextStyle(MaterialTheme.typography.labelSmall, content = label)
+        }
+    }
+}
+
+/** Checkbox semantics with a small animated glass selection indicator. */
+@Composable
+fun GlassCheckbox(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 1.16f else 1f, spring(dampingRatio = .58f, stiffness = 520f), label = "glass checkbox press")
+    val container by animateColorAsState(
+        if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+        tween(260),
+        label = "glass checkbox surface",
+    )
+    val foreground by animateColorAsState(
+        if (checked) MaterialTheme.colorScheme.onPrimaryContainer else Color.Transparent,
+        tween(220),
+        label = "glass checkbox mark",
+    )
+    Box(
+        modifier
+            .size(48.dp)
+            .toggleable(
+                value = checked,
+                enabled = onCheckedChange != null,
+                role = Role.Checkbox,
+                interactionSource = interaction,
+                indication = null,
+                onValueChange = { onCheckedChange?.invoke(it) },
+            ),
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(28.dp)
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .liquidGlass(RoundedCornerShape(10.dp), tint = container),
+            contentAlignment = androidx.compose.ui.Alignment.Center,
+        ) {
+            Text("✓", color = foreground, style = MaterialTheme.typography.labelLarge)
         }
     }
 }

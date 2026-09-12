@@ -5,7 +5,6 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,9 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import app.readbound.ui.GlassButton as Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import app.readbound.ui.GlassModalBottomSheet as ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -142,16 +139,15 @@ fun LibraryScreen(
             containerColor = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onBackground,
             floatingActionButton = {
-                Surface(
+                GlassIconButton(
                     onClick = { importLauncher.launch(BOOK_MIME_TYPES) },
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shadowElevation = 8.dp,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.padding(bottom = if (wide) 0.dp else 88.dp).size(60.dp),
+                    elevated = true,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        ReaderIcon(R.raw.icon_add, readerString("Add book", "Добавить книгу"), Modifier.size(26.dp), ColorFilter.tint(MaterialTheme.colorScheme.onPrimary))
+                        ReaderIcon(R.raw.icon_add, readerString("Add book", "Добавить книгу"), Modifier.size(26.dp), ColorFilter.tint(MaterialTheme.colorScheme.onPrimaryContainer))
                     }
                 }
             },
@@ -207,17 +203,12 @@ fun LibraryScreen(
                             Spacer(Modifier.height(22.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(readerString("All books", "Все книги"), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                                Surface(
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    shape = RoundedCornerShape(16.dp),
+                                GlassDropdownButton(
+                                    label = sort.label(),
                                     onClick = { showSort = true },
-                                ) {
-                                    Row(Modifier.padding(horizontal = 13.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Text(sort.label(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                                        Spacer(Modifier.width(6.dp))
-                                        ReaderIcon(R.raw.icon_chevron, null, Modifier.size(16.dp), ColorFilter.tint(MaterialTheme.colorScheme.primary))
-                                    }
-                                }
+                                    expanded = showSort,
+                                    modifier = Modifier.width(132.dp),
+                                )
                             }
                         }
                     }
@@ -286,7 +277,16 @@ private fun SearchField(value: String, onValue: (String) -> Unit, onClose: () ->
         modifier = Modifier.fillMaxWidth(),
         placeholder = { Text(readerString("Book or author", "Книга или автор")) },
         leadingIcon = { ReaderIcon(R.raw.icon_search, null, Modifier.size(24.dp), ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)) },
-        trailingIcon = { Box(Modifier.clickable(onClick = onClose).padding(12.dp)) { ReaderIcon(R.raw.icon_clear, "Close", Modifier.size(24.dp), ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)) } },
+        trailingIcon = {
+            GlassIconButton(
+                onClick = onClose,
+                modifier = Modifier.size(48.dp),
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ) {
+                ReaderIcon(R.raw.icon_clear, readerString("Close", "Закрыть"), Modifier.size(22.dp), ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant))
+            }
+        },
         shape = RoundedCornerShape(20.dp),
         singleLine = true,
         colors = TextFieldDefaults.colors(
@@ -387,7 +387,7 @@ private fun EmptyLibrary(filtered: Boolean, onAdd: () -> Unit) {
     Column(Modifier.fillMaxWidth().padding(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(if (filtered) readerString("Nothing found", "Ничего не найдено") else readerString("Your library is empty", "Библиотека пуста"), style = MaterialTheme.typography.titleMedium)
         Text(if (filtered) readerString("Try another query", "Попробуйте другой запрос") else readerString("Add an EPUB, FB2 or TXT book to start reading", "Добавьте EPUB, FB2 или TXT, чтобы начать чтение"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (!filtered) Button(onAdd, modifier = Modifier.padding(top = 18.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) { Text(readerString("Add book", "Добавить книгу")) }
+        if (!filtered) Button(onAdd, modifier = Modifier.padding(top = 18.dp)) { Text(readerString("Add book", "Добавить книгу")) }
     }
 }
 

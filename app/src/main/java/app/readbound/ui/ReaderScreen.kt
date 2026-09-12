@@ -3,7 +3,6 @@ package app.readbound.ui
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import androidx.compose.ui.draw.clip
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color as AndroidColor
@@ -17,7 +16,6 @@ import android.webkit.WebViewClient
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -43,6 +41,7 @@ import app.readbound.ui.GlassButton as Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import app.readbound.ui.GlassFilterChip as FilterChip
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import app.readbound.ui.GlassModalBottomSheet as ModalBottomSheet
 import app.readbound.ui.GlassSlider as Slider
@@ -113,14 +112,19 @@ private data class TextSelection(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReaderScreen(container: AppContainer, bookId: String, onBack: () -> Unit) {
+fun ReaderScreen(
+    container: AppContainer,
+    bookId: String,
+    initialReaderPreferences: ReaderPreferences = ReaderPreferences(),
+    onBack: () -> Unit,
+) {
     val context = LocalContext.current
-    val russian = androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language == "ru"
+    val russian = LocalReaderLanguage.current == "ru"
     fun localized(english: String, russianText: String) = if (russian) russianText else english
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
     val book by produceState<BookEntity?>(null, bookId) { value = container.repository.book(bookId) }
-    val preferences by container.settings.reader.collectAsStateWithLifecycle(initialValue = ReaderPreferences())
+    val preferences by container.settings.reader.collectAsStateWithLifecycle(initialValue = initialReaderPreferences)
     val ankiPreferences by container.settings.anki.collectAsStateWithLifecycle(initialValue = AnkiPreferences())
     val aiPreferences by container.settings.ai.collectAsStateWithLifecycle(initialValue = AiPreferences())
     val annotations by container.repository.annotationsForBook(bookId).collectAsStateWithLifecycle(initialValue = emptyList())
@@ -522,7 +526,12 @@ private fun ReaderTopBar(
 
 @Composable
 private fun ReaderControlIcon(resource: Int, description: String, onClick: () -> Unit, tint: Color = MaterialTheme.colorScheme.onSurfaceVariant) {
-    Box(Modifier.size(48.dp).clip(RoundedCornerShape(50)).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+    GlassIconButton(
+        onClick = onClick,
+        modifier = Modifier.size(48.dp),
+        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = .08f),
+        contentColor = tint,
+    ) {
         ReaderIcon(resource, description, Modifier.size(24.dp), ColorFilter.tint(tint))
     }
 }
@@ -590,9 +599,11 @@ private fun ReaderProgressPanel(
             )
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ReaderPanelAction(R.raw.icon_contents, readerString("Contents", "Содержание"), Modifier.weight(1f), onContents)
-                Surface(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp), onClick = onSettings) {
-                    Box(Modifier.height(48.dp), contentAlignment = Alignment.Center) { Text(readerString("Aa   Settings", "Aa   Настройки"), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface) }
-                }
+                GlassOutlinedButton(
+                    onClick = onSettings,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(18.dp),
+                ) { Text(readerString("Aa   Settings", "Aa   Настройки"), style = MaterialTheme.typography.labelMedium) }
             }
         }
     }
@@ -600,10 +611,13 @@ private fun ReaderProgressPanel(
 
 @Composable
 private fun ReaderPanelAction(icon: Int, label: String, modifier: Modifier, onClick: () -> Unit) {
-    Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp), onClick = onClick) {
-        Row(Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-            ReaderIcon(icon, null, Modifier.size(24.dp), ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)); Spacer(Modifier.width(8.dp)); Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurface)
-        }
+    GlassOutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+    ) {
+        ReaderIcon(icon, null, Modifier.size(24.dp), ColorFilter.tint(LocalContentColor.current))
+        Text(label, style = MaterialTheme.typography.labelMedium)
     }
 }
 
@@ -996,20 +1010,27 @@ private fun ReaderSettingsSheet(
             Text(readerString("Theme", "Тема"), style = MaterialTheme.typography.labelMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ReaderTheme.entries.forEach { theme ->
+                    val themeLabel = when (theme) {
+                        ReaderTheme.LIGHT -> readerString("Light", "Светлая")
+                        ReaderTheme.SEPIA -> readerString("Sepia", "Сепия")
+                        ReaderTheme.DARK -> readerString("Dark", "Тёмная")
+                    }
                     Surface(
                         modifier = Modifier.weight(1f),
                         color = when (theme) { ReaderTheme.LIGHT -> Color.White; ReaderTheme.SEPIA -> ReaderColors.ReaderBackground; ReaderTheme.DARK -> ReaderColors.SurfaceDark },
                         shape = RoundedCornerShape(18.dp),
                         border = if (!draft.followSystemTheme && draft.theme == theme) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
                         onClick = { stage(draft.copy(theme = theme, followSystemTheme = false)) },
-                    ) { Column(Modifier.padding(14.dp)) { Text("Aa", color = if (theme == ReaderTheme.DARK) Color.White else ReaderColors.TextPrimary); Text(theme.name.lowercase().replaceFirstChar { it.titlecase() }, style = MaterialTheme.typography.labelMedium, color = if (theme == ReaderTheme.DARK) Color.White else ReaderColors.TextPrimary) } }
+                    ) { Column(Modifier.padding(14.dp)) { Text("Aa", color = if (theme == ReaderTheme.DARK) Color.White else ReaderColors.TextPrimary); Text(themeLabel, style = MaterialTheme.typography.labelMedium, color = if (theme == ReaderTheme.DARK) Color.White else ReaderColors.TextPrimary) } }
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) { Text(readerString("Follow system theme", "Как в системе"), modifier = Modifier.weight(1f)); Switch(draft.followSystemTheme, { value -> stage(draft.copy(followSystemTheme = value)) }) }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(Modifier.weight(1f), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
-                    Row(Modifier.height(48.dp).padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) { Text(draft.fontFamily, modifier = Modifier.weight(1f)); TextButton(onClick = { stage(draft.copy(fontFamily = if (draft.fontFamily == "Literata") "Sans" else "Literata")) }) { Text(readerString("Change", "Сменить")) } }
-                }
+                GlassDropdownButton(
+                    label = draft.fontFamily,
+                    onClick = { stage(draft.copy(fontFamily = if (draft.fontFamily == "Literata") "Sans" else "Literata")) },
+                    modifier = Modifier.weight(1f),
+                )
                 Surface(Modifier.width(120.dp), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
                     Row(Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
                         TextButton(onClick = { stage(draft.copy(fontSize = (draft.fontSize - 1).coerceAtLeast(12))) }) { Text("−") }
@@ -1231,7 +1252,12 @@ private fun TranslationSheet(
 @Composable
 private fun SelectionAction(icon: Int, label: String, onClick: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.size(58.dp), onClick = onClick) {
+        GlassIconButton(
+            onClick = onClick,
+            modifier = Modifier.size(58.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        ) {
             Box(contentAlignment = Alignment.Center) { ReaderIcon(icon, label, Modifier.size(24.dp), ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)) }
         }
         Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 5.dp))

@@ -1,7 +1,10 @@
 package app.readbound.ui.theme
 
 import android.app.Activity
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -57,11 +60,12 @@ private val AppTypography = androidx.compose.material3.Typography(
     labelSmall = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = 0.2.sp),
 )
 
-private val LightScheme = lightColorScheme(
+internal val LightScheme = lightColorScheme(
     primary = ReaderColors.Primary,
     onPrimary = Color.White,
     primaryContainer = ReaderColors.AccentContainer,
-    onPrimaryContainer = ReaderColors.Primary,
+    // Slightly deeper than the accent itself: 5.5:1 on the pale glass tint.
+    onPrimaryContainer = Color(0xFF0B56AA),
     background = ReaderColors.AppBackground,
     onBackground = ReaderColors.TextPrimary,
     surface = ReaderColors.Surface,
@@ -71,7 +75,7 @@ private val LightScheme = lightColorScheme(
     outlineVariant = ReaderColors.Outline,
 )
 
-private val DarkScheme = darkColorScheme(
+internal val DarkScheme = darkColorScheme(
     primary = Color(0xFF9DC8FF),
     onPrimary = Color(0xFF072E5E),
     primaryContainer = Color(0xFF21436C),
@@ -89,6 +93,7 @@ private val DarkScheme = darkColorScheme(
 @Composable
 fun ReaderAppTheme(preferences: ReaderPreferences, content: @Composable () -> Unit) {
     val dark = effectiveReaderTheme(preferences, isSystemInDarkTheme()) == ReaderTheme.DARK
+    val colorScheme = animatedReaderColorScheme(if (dark) DarkScheme else LightScheme)
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -100,7 +105,7 @@ fun ReaderAppTheme(preferences: ReaderPreferences, content: @Composable () -> Un
         }
     }
     MaterialTheme(
-        colorScheme = if (dark) DarkScheme else LightScheme,
+        colorScheme = colorScheme,
         typography = AppTypography,
         shapes = androidx.compose.material3.Shapes(
             small = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
@@ -109,5 +114,39 @@ fun ReaderAppTheme(preferences: ReaderPreferences, content: @Composable () -> Un
             extraLarge = androidx.compose.foundation.shape.RoundedCornerShape(32.dp),
         ),
         content = content,
+    )
+}
+
+/** Smoothly morph the semantic palette so glass layers do not flash on theme changes. */
+@Composable
+private fun animatedReaderColorScheme(target: ColorScheme): ColorScheme {
+    @Composable
+    fun animated(color: Color, label: String): Color = animateColorAsState(
+        targetValue = color,
+        animationSpec = tween(durationMillis = 420),
+        label = label,
+    ).value
+
+    return target.copy(
+        primary = animated(target.primary, "theme primary"),
+        onPrimary = animated(target.onPrimary, "theme on primary"),
+        primaryContainer = animated(target.primaryContainer, "theme primary container"),
+        onPrimaryContainer = animated(target.onPrimaryContainer, "theme on primary container"),
+        background = animated(target.background, "theme background"),
+        onBackground = animated(target.onBackground, "theme on background"),
+        surface = animated(target.surface, "theme surface"),
+        onSurface = animated(target.onSurface, "theme on surface"),
+        surfaceVariant = animated(target.surfaceVariant, "theme surface variant"),
+        onSurfaceVariant = animated(target.onSurfaceVariant, "theme on surface variant"),
+        outline = animated(target.outline, "theme outline"),
+        outlineVariant = animated(target.outlineVariant, "theme outline variant"),
+        error = animated(target.error, "theme error"),
+        onError = animated(target.onError, "theme on error"),
+        errorContainer = animated(target.errorContainer, "theme error container"),
+        onErrorContainer = animated(target.onErrorContainer, "theme on error container"),
+        inverseSurface = animated(target.inverseSurface, "theme inverse surface"),
+        inverseOnSurface = animated(target.inverseOnSurface, "theme inverse on surface"),
+        inversePrimary = animated(target.inversePrimary, "theme inverse primary"),
+        surfaceTint = animated(target.surfaceTint, "theme surface tint"),
     )
 }

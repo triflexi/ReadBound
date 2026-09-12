@@ -52,6 +52,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
@@ -105,6 +106,7 @@ internal fun RepositoryLiquidButton(
     backdrop: Backdrop?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    shape: Shape = Capsule(),
     tint: Color = Color.Unspecified,
     surfaceColor: Color = Color.Unspecified,
     contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
@@ -118,7 +120,7 @@ internal fun RepositoryLiquidButton(
         modifier
             .drawBackdrop(
                 backdrop = resolvedBackdrop,
-                shape = { Capsule() },
+                shape = { shape },
                 effects = { vibrancy(); blur(2.dp.toPx()); lens(12.dp.toPx(), 24.dp.toPx()) },
                 layerBlock = if (enabled) {
                     {
@@ -153,8 +155,7 @@ internal fun RepositoryLiquidButton(
             )
             .then(if (enabled) Modifier.then(interactiveHighlight.modifier).then(interactiveHighlight.gestureModifier) else Modifier)
             .height(48.dp)
-            .padding(contentPadding)
-            .alpha(if (enabled) 1f else .45f),
+            .padding(contentPadding),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
         content = content,

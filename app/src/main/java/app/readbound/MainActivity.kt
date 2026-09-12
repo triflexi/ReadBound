@@ -8,7 +8,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import app.readbound.ui.ReaderApp
-import app.readbound.settings.LocaleController
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -17,10 +16,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = application as ReaderApplication
-        LocaleController.apply(this, runBlocking { app.container.settings.reader.first().language })
+        // Seed Compose with the persisted value. DataStore is asynchronous, so using
+        // its default here would briefly paint the wrong theme and locale on launch.
+        val initialPreferences = runBlocking { app.container.settings.reader.first() }
         enableEdgeToEdge()
         handleIncoming(intent)
-        setContent { ReaderApp(app.container) }
+        setContent { ReaderApp(app.container, initialPreferences) }
     }
 
     override fun onNewIntent(intent: Intent) {

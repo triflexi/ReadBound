@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import app.readbound.ui.GlassAlertDialog as AlertDialog
-import androidx.compose.material3.AssistChip
 import app.readbound.ui.GlassButton as Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import app.readbound.ui.GlassFilterChip as FilterChip
@@ -241,7 +240,7 @@ private fun AnnotationCard(
                 }
             }
             if (itemTags.isNotEmpty()) FlowRow(Modifier.padding(start = 18.dp, top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                itemTags.forEach { AssistChip(onClick = {}, label = { Text(it.name) }) }
+                itemTags.forEach { tag -> GlassLabelChip(label = { Text(tag.name) }) }
             }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
@@ -314,7 +313,10 @@ private fun EditAnnotationDialog(
         },
         dismissButton = {
             Row {
-                TextButton(onClick = { scope.launch { container.repository.deleteAnnotation(annotation.id); onDismiss() } }) { Text(readerString("Delete", "Удалить")) }
+                TextButton(
+                    onClick = { scope.launch { container.repository.deleteAnnotation(annotation.id); onDismiss() } },
+                    contentColor = MaterialTheme.colorScheme.error,
+                ) { Text(readerString("Delete", "Удалить")) }
                 TextButton(onClick = onDismiss) { Text(readerString("Cancel", "Отмена")) }
             }
         },

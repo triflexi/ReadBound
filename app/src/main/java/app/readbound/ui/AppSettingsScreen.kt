@@ -8,9 +8,6 @@ import android.Manifest
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,8 +32,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import app.readbound.ui.GlassButton as Button
 import app.readbound.ui.GlassAlertDialog as AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import app.readbound.ui.GlassFilterChip as FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -53,7 +48,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -73,7 +67,6 @@ import app.readbound.settings.AnkiPreferences
 import app.readbound.settings.AnkiBackMode
 import app.readbound.settings.SyncPreferences
 import app.readbound.settings.AiPreferences
-import app.readbound.settings.LocaleController
 import app.readbound.plugin.PluginManifest
 import app.readbound.sync.WebDavSyncWorker
 import app.readbound.data.SyncConflictEntity
@@ -82,12 +75,16 @@ import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
+fun AppSettingsScreen(
+    container: AppContainer,
+    initialReaderPreferences: ReaderPreferences = ReaderPreferences(),
+    onBack: () -> Unit,
+) {
     val context = LocalContext.current
-    val russian = androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language == "ru"
-    fun localized(english: String, russianText: String) = if (russian) russianText else english
     val scope = rememberCoroutineScope()
-    val reader by container.settings.reader.collectAsStateWithLifecycle(initialValue = ReaderPreferences())
+    val reader by container.settings.reader.collectAsStateWithLifecycle(initialValue = initialReaderPreferences)
+    val russian = reader.language == "ru"
+    fun localized(english: String, russianText: String) = if (russian) russianText else english
     val anki by container.settings.anki.collectAsStateWithLifecycle(initialValue = AnkiPreferences())
     val sync by container.settings.sync.collectAsStateWithLifecycle(initialValue = SyncPreferences())
     val ai by container.settings.ai.collectAsStateWithLifecycle(initialValue = AiPreferences())
@@ -162,33 +159,42 @@ fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
         ) {
             item {
                 SettingsCard(readerString("Appearance and language", "Оформление и язык")) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = reader.followSystemTheme,
-                            onClick = { scope.launch { container.settings.updateReader { it.copy(followSystemTheme = true) } } },
-                            label = { Text(readerString("System", "Как в системе")) },
-                        )
-                        FilterChip(
-                            selected = !reader.followSystemTheme && reader.theme != ReaderTheme.DARK,
-                            onClick = { scope.launch { container.settings.updateReader { it.copy(followSystemTheme = false, theme = if (it.theme == ReaderTheme.DARK) ReaderTheme.LIGHT else it.theme) } } },
-                            label = { Text(readerString("Light", "Светлая")) },
-                        )
-                        FilterChip(
-                            selected = !reader.followSystemTheme && reader.theme == ReaderTheme.DARK,
-                            onClick = { scope.launch { container.settings.updateReader { it.copy(followSystemTheme = false, theme = ReaderTheme.DARK) } } },
-                            label = { Text(readerString("Dark", "Тёмная")) },
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedButton(onClick = {
-                            scope.launch { container.settings.updateReader { it.copy(language = "ru") } }
-                            LocaleController.apply(context, "ru", recreate = true)
-                        }, modifier = Modifier.weight(1f)) { Text("Русский") }
-                        OutlinedButton(onClick = {
-                            scope.launch { container.settings.updateReader { it.copy(language = "en") } }
-                            LocaleController.apply(context, "en", recreate = true)
-                        }, modifier = Modifier.weight(1f)) { Text("English") }
-                    }
+                    GlassSegmentedControl(
+                        labels = listOf(
+                            readerString("System", "Система"),
+                            readerString("Light", "Светлая"),
+                            readerString("Dark", "Тёмная"),
+                        ),
+                        selectedIndex = when {
+                            reader.followSystemTheme -> 0
+                            reader.theme == ReaderTheme.DARK -> 2
+                            else -> 1
+                        },
+                        onSelected = { index ->
+                            scope.launch {
+                                container.settings.updateReader {
+                                    when (index) {
+                                        0 -> it.copy(followSystemTheme = true)
+                                        2 -> it.copy(followSystemTheme = false, theme = ReaderTheme.DARK)
+                                        else -> it.copy(followSystemTheme = false, theme = ReaderTheme.LIGHT)
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(readerString("Application language", "Язык приложения"), style = MaterialTheme.typography.labelMedium)
+                    GlassSegmentedControl(
+                        labels = listOf("Русский", "English"),
+                        selectedIndex = if (reader.language == "en") 1 else 0,
+                        onSelected = { index ->
+                            val language = if (index == 1) "en" else "ru"
+                            if (language != reader.language) {
+                                scope.launch { container.settings.updateReader { it.copy(language = language) } }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
             item {
@@ -215,7 +221,11 @@ fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
                                 }
                                 Switch(dictionary.enabled, { enabled -> scope.launch { container.dictionaries.setEnabled(dictionary.id, enabled) } })
                             }
-                            TextButton(onClick = { dictionaryToDelete = dictionary }, modifier = Modifier.align(Alignment.End)) {
+                            TextButton(
+                                onClick = { dictionaryToDelete = dictionary },
+                                modifier = Modifier.align(Alignment.End),
+                                contentColor = MaterialTheme.colorScheme.error,
+                            ) {
                                 Text(readerString("Delete dictionary", "Удалить словарь"))
                             }
                         }
@@ -255,7 +265,10 @@ fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
                         }
                     }, modifier = Modifier.fillMaxWidth()) { Text(readerString("Save AI settings", "Сохранить настройки ИИ")) }
                     if (container.aiTranslation.hasApiKey()) {
-                        TextButton(onClick = { container.aiTranslation.setApiKey(""); message = localized("API key removed", "API-ключ удалён") }) {
+                        TextButton(
+                            onClick = { container.aiTranslation.setApiKey(""); message = localized("API key removed", "API-ключ удалён") },
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ) {
                             Text(readerString("Remove saved API key", "Удалить сохранённый API-ключ"))
                         }
                     }
@@ -317,12 +330,12 @@ fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
                     SettingSwitch(readerString("Add grammar tags", "Добавлять грамматику"), anki.includeTags) { value -> scope.launch { container.settings.updateAnki(anki.copy(includeTags = value)) } }
                     SettingSwitch(readerString("Add dictionary name", "Добавлять название словаря"), anki.includeDictionaryName) { value -> scope.launch { container.settings.updateAnki(anki.copy(includeDictionaryName = value)) } }
                     Text(readerString("Deck", "Колода") + ": ${anki.deckName} · " + readerString("note type", "тип заметки") + ": ${anki.modelName}", style = MaterialTheme.typography.labelMedium)
-                    OutlinedButton(onClick = {
+                    GlassDropdownButton(label = readerString("Choose deck and note type", "Выбрать колоду и тип заметки"), onClick = {
                         scope.launch {
                             ankiChoices = runCatching { container.plugins.ankiDecks() to container.plugins.ankiModels() }
                                 .getOrElse { message = it.message ?: "Could not read Anki configuration"; null }
                         }
-                    }, enabled = container.plugins.ankiPermissionGranted(), modifier = Modifier.fillMaxWidth()) { Text(readerString("Choose deck and note type", "Выбрать колоду и тип заметки")) }
+                    }, enabled = container.plugins.ankiPermissionGranted(), modifier = Modifier.fillMaxWidth())
                 }
             }
             item {
@@ -441,7 +454,10 @@ fun AppSettingsScreen(container: AppContainer, onBack: () -> Unit) {
                         dictionaryToDelete = null
                         message = localized("Dictionary deleted", "Словарь удалён")
                     }
-                }) { Text(readerString("Delete", "Удалить")) }
+                }, colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                )) { Text(readerString("Delete", "Удалить")) }
             },
             dismissButton = { TextButton(onClick = { dictionaryToDelete = null }) { Text(readerString("Cancel", "Отмена")) } },
         )
@@ -460,9 +476,9 @@ private fun SettingsTopIsland(onBack: () -> Unit, backdrop: Backdrop, modifier: 
             modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(18.dp)).clickable(onClick = onBack),
-                contentAlignment = Alignment.Center,
+            GlassIconButton(
+                onClick = onBack,
+                modifier = Modifier.size(48.dp),
             ) {
                 ReaderIcon(
                     R.raw.icon_back,

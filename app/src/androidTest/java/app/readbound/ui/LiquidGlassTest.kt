@@ -98,6 +98,38 @@ class LiquidGlassTest {
         compose.runOnIdle { assertEquals(.65f, progress, .001f) }
     }
 
+    @Test fun languageSwitchRecomposesWithoutRecreatingTheHost() {
+        compose.setContent {
+            var language by remember { mutableStateOf("ru") }
+            ReaderLocale(language) {
+                ReaderAppTheme(ReaderPreferences(language = language)) {
+                    GlassBackground {
+                        Column {
+                            Text(readerString("English interface", "Русский интерфейс"))
+                            GlassButton(onClick = { language = "en" }) { Text("Switch language") }
+                        }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithText("Русский интерфейс").assertIsDisplayed()
+        compose.onNodeWithText("Switch language").performClick()
+        compose.onNodeWithText("English interface").assertIsDisplayed()
+        compose.onNodeWithText("Русский интерфейс").assertDoesNotExist()
+    }
+
+    @Test fun glassCheckboxRetainsCheckboxSemanticsAndAnimationState() {
+        compose.setContent {
+            ReaderAppTheme(ReaderPreferences()) {
+                GlassBackground {
+                    var checked by remember { mutableStateOf(false) }
+                    GlassCheckbox(checked, { checked = it }, Modifier.testTag("glass checkbox"))
+                }
+            }
+        }
+        compose.onNodeWithTag("glass checkbox").assertIsOff().performClick().assertIsOn()
+    }
+
     @Test fun ankiSheetKeepsDraftAndEnablesSendOnlyWithBothSides() {
         var submitted: Pair<String, String>? = null
         compose.setContent {

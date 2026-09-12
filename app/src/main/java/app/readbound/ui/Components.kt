@@ -27,13 +27,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import app.readbound.ui.GlassButton as Button
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import app.readbound.ui.GlassFilterChip as FilterChip
 import app.readbound.ui.GlassModalBottomSheet as ModalBottomSheet
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
+import app.readbound.ui.GlassCheckbox as Checkbox
 import app.readbound.ui.GlassOutlinedButton as OutlinedButton
 import app.readbound.ui.GlassSurface as Surface
 import androidx.compose.material3.Text
@@ -45,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,7 +62,9 @@ import kotlinx.coroutines.delay
 import com.kyant.backdrop.Backdrop
 
 @Composable
-fun readerString(english: String, russian: String): String = if (Locale.current.language == "ru") russian else english
+fun readerString(english: String, russian: String): String = if (LocalReaderLanguage.current == "ru") russian else english
+
+internal val LocalReaderLanguage = staticCompositionLocalOf { Locale.current.language }
 
 @Composable
 fun ReaderTransientMessage(
@@ -109,11 +111,11 @@ fun RoundIconButton(
     foreground: Color = MaterialTheme.colorScheme.onSurface,
     onClick: () -> Unit,
 ) {
-    Surface(
-        modifier = modifier.size(48.dp),
-        color = background,
-        shape = RoundedCornerShape(50),
+    GlassIconButton(
         onClick = onClick,
+        modifier = modifier.size(48.dp),
+        containerColor = background,
+        contentColor = foreground,
     ) {
         Box(contentAlignment = Alignment.Center) {
             ReaderIcon(icon, description, Modifier.size(24.dp), ColorFilter.tint(foreground))
@@ -141,25 +143,49 @@ fun ReaderBottomNavigation(selected: String, modifier: Modifier = Modifier, back
 
 @Composable
 fun ReaderNavigationRail(selected: String, backdrop: Backdrop? = null, onSelect: (String) -> Unit) {
-    NavigationRail(
+    Surface(
         modifier = Modifier.fillMaxHeight().padding(start = 8.dp, top = 16.dp, bottom = 16.dp)
-            .liquidGlass(RoundedCornerShape(36.dp), backdrop = backdrop, elevated = true),
-        containerColor = Color.Transparent,
-        header = { Text("R", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 18.dp)) },
+            .width(92.dp),
+        shape = RoundedCornerShape(36.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = .72f),
+        backdrop = backdrop,
+        shadowElevation = 10.dp,
     ) {
-        Column(verticalArrangement = Arrangement.Center, modifier = Modifier.weight(1f)) {
-            NavigationRailItem(
-                selected = selected == "library",
-                onClick = { onSelect("library") },
-                icon = { ReaderIcon(R.raw.icon_library, "Library", Modifier.size(24.dp), ColorFilter.tint(if (selected == "library") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)) },
-                label = { Text(readerString("Library", "Библиотека")) },
-            )
-            NavigationRailItem(
-                selected = selected == "notes",
-                onClick = { onSelect("notes") },
-                icon = { ReaderIcon(R.raw.icon_notes, "Notes", Modifier.size(24.dp), ColorFilter.tint(if (selected == "notes") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)) },
-                label = { Text(readerString("Notes", "Заметки")) },
-            )
+        Column(
+            modifier = Modifier.fillMaxSize().padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("R", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 18.dp))
+            Spacer(Modifier.weight(1f))
+            ReaderRailButton("library", R.raw.icon_library, readerString("Library", "Библиотека"), selected == "library", onSelect)
+            Spacer(Modifier.height(10.dp))
+            ReaderRailButton("notes", R.raw.icon_notes, readerString("Notes", "Заметки"), selected == "notes", onSelect)
+            Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun ReaderRailButton(
+    id: String,
+    @RawRes icon: Int,
+    label: String,
+    selected: Boolean,
+    onSelect: (String) -> Unit,
+) {
+    val foreground = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    Button(
+        onClick = { onSelect(id) },
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface.copy(alpha = .10f),
+            contentColor = foreground,
+        ),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            ReaderIcon(icon, label, Modifier.size(22.dp), ColorFilter.tint(foreground))
+            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
     }
 }
