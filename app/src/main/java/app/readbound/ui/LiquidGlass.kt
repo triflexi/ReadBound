@@ -464,7 +464,7 @@ fun GlassSegmentedControl(
                 Text(
                     label,
                     style = MaterialTheme.typography.labelLarge,
-                    color = if (index == selectedIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }

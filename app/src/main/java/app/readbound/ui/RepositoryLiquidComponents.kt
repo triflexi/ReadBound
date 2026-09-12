@@ -46,10 +46,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
@@ -60,6 +62,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.role
@@ -428,6 +431,8 @@ internal fun RepositoryLiquidBottomTabs(
     val isLight = androidx.compose.material3.MaterialTheme.colorScheme.background.luminance() > .5f
     val accent = if (isLight) Color(0xFF0088FF) else Color(0xFF0091FF)
     val container = if (isLight) Color(0xFFFAFAFA).copy(alpha = .40f) else Color(0xFF121212).copy(alpha = .40f)
+    val tabsBackdrop = rememberLayerBackdrop()
+
     BoxWithConstraints(modifier, contentAlignment = Alignment.CenterStart) {
         val density = LocalDensity.current
         val tabWidth = with(density) { (constraints.maxWidth.toFloat() - 8.dp.toPx()) / tabsCount }
@@ -477,10 +482,7 @@ internal fun RepositoryLiquidBottomTabs(
             }
         }
 
-        CompositionLocalProvider(
-            LocalLiquidTabScale provides { lerp(1f, 1.2f, damped.pressProgress) },
-            LocalLiquidTabSelection provides { index -> currentIndex = index.fastCoerceIn(0, tabsCount - 1) },
-        ) {
+        CompositionLocalProvider(LocalLiquidTabSelection provides { index -> currentIndex = index.fastCoerceIn(0, tabsCount - 1) }) {
             Row(
                 Modifier
                     .graphicsLayer { translationX = panelOffset }
@@ -502,6 +504,33 @@ internal fun RepositoryLiquidBottomTabs(
                 verticalAlignment = Alignment.CenterVertically,
                 content = content,
             )
+
+            CompositionLocalProvider(LocalLiquidTabScale provides { lerp(1f, 1.2f, damped.pressProgress) }) {
+                Row(
+                    Modifier
+                        .clearAndSetSemantics { }
+                        .alpha(0f)
+                        .layerBackdrop(tabsBackdrop)
+                        .graphicsLayer { translationX = panelOffset }
+                        .drawBackdrop(
+                            backdrop = resolvedBackdrop,
+                            shape = { Capsule() },
+                            effects = {
+                                vibrancy(); blur(8.dp.toPx())
+                                lens(24.dp.toPx() * damped.pressProgress, 24.dp.toPx() * damped.pressProgress)
+                            },
+                            highlight = { Highlight.Default.copy(alpha = damped.pressProgress) },
+                            onDrawSurface = { drawRect(container) },
+                        )
+                        .then(interactiveHighlight.modifier)
+                        .height(56.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                        .graphicsLayer(colorFilter = ColorFilter.tint(accent)),
+                    verticalAlignment = Alignment.CenterVertically,
+                    content = content,
+                )
+            }
         }
 
         Box(
@@ -513,7 +542,7 @@ internal fun RepositoryLiquidBottomTabs(
                 .then(interactiveHighlight.gestureModifier)
                 .then(damped.modifier)
                 .drawBackdrop(
-                    backdrop = resolvedBackdrop,
+                    backdrop = rememberCombinedBackdrop(resolvedBackdrop, tabsBackdrop),
                     shape = { Capsule() },
                     effects = { lens(10.dp.toPx() * damped.pressProgress, 14.dp.toPx() * damped.pressProgress, chromaticAberration = true) },
                     highlight = { Highlight.Default.copy(alpha = damped.pressProgress) },
@@ -526,7 +555,7 @@ internal fun RepositoryLiquidBottomTabs(
                         scaleY *= 1f - (velocity * .25f).fastCoerceIn(-.2f, .2f)
                     },
                     onDrawSurface = {
-                        drawRect(accent.copy(alpha = if (isLight) .14f else .18f), alpha = 1f - damped.pressProgress)
+                        drawRect(if (isLight) Color.Black.copy(alpha = .10f) else Color.White.copy(alpha = .10f), alpha = 1f - damped.pressProgress)
                         drawRect(Color.Black.copy(alpha = .03f * damped.pressProgress))
                     },
                 )
