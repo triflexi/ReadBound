@@ -125,8 +125,9 @@ fun RoundIconButton(
 
 @Composable
 fun ReaderBottomNavigation(selected: String, modifier: Modifier = Modifier, backdrop: Backdrop? = null, onSelect: (String) -> Unit) {
+    val selectedIndex = if (selected == "notes") 1 else 0
     RepositoryLiquidBottomTabs(
-        selectedTabIndex = if (selected == "notes") 1 else 0,
+        selectedTabIndex = selectedIndex,
         onTabSelected = { index -> onSelect(if (index == 1) "notes" else "library") },
         backdrop = backdrop,
         tabsCount = 2,
@@ -136,8 +137,8 @@ fun ReaderBottomNavigation(selected: String, modifier: Modifier = Modifier, back
             .navigationBarsPadding()
             .padding(horizontal = 20.dp, vertical = 12.dp),
     ) {
-        BottomNavigationItem("library", R.raw.icon_library, readerString("Library", "Библиотека"), selected == "library", Modifier, onSelect)
-        BottomNavigationItem("notes", R.raw.icon_notes, readerString("Notes", "Заметки"), selected == "notes", Modifier, onSelect)
+        BottomNavigationItem(0, R.raw.icon_library, readerString("Library", "Библиотека"), selectedIndex == 0, Modifier)
+        BottomNavigationItem(1, R.raw.icon_notes, readerString("Notes", "Заметки"), selectedIndex == 1, Modifier)
     }
 }
 
@@ -293,37 +294,24 @@ fun AnkiExportDialog(
                                     }
                                 }
                             }
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                FilterChip(
-                                    selected = localPreferences.backMode == AnkiBackMode.CONCISE && selectedOption != null && selectedBlockIds == defaultDictionaryBlockIds(selectedOption, AnkiBackMode.CONCISE) && manualBack == null,
-                                    onClick = {
-                                        val option = selectedOption ?: return@FilterChip
-                                        val next = localPreferences.copy(backMode = AnkiBackMode.CONCISE)
-                                        updatePreferences(next)
-                                        selectedBlockIds = defaultDictionaryBlockIds(option, next.backMode)
-                                        manualBack = null
-                                        editingManually = false
-                                    },
-                                    label = { Text(readerString("Concise", "Кратко")) },
-                                )
-                                FilterChip(
-                                    selected = localPreferences.backMode == AnkiBackMode.ARTICLE && selectedOption != null && selectedBlockIds == defaultDictionaryBlockIds(selectedOption, AnkiBackMode.ARTICLE) && manualBack == null,
-                                    onClick = {
-                                        val option = selectedOption ?: return@FilterChip
-                                        val next = localPreferences.copy(backMode = AnkiBackMode.ARTICLE)
-                                        updatePreferences(next)
-                                        selectedBlockIds = defaultDictionaryBlockIds(option, next.backMode)
-                                        manualBack = null
-                                        editingManually = false
-                                    },
-                                    label = { Text(readerString("Full article", "Вся статья")) },
-                                )
-                                FilterChip(
-                                    selected = detailsExpanded,
-                                    onClick = { detailsExpanded = !detailsExpanded },
-                                    label = { Text(readerString("Details", "Состав")) },
-                                )
-                            }
+                            GlassSegmentedControl(
+                                labels = listOf(readerString("Concise", "Кратко"), readerString("Full article", "Вся статья")),
+                                selectedIndex = if (localPreferences.backMode == AnkiBackMode.ARTICLE) 1 else 0,
+                                onSelected = { index ->
+                                    val option = selectedOption ?: return@GlassSegmentedControl
+                                    val next = localPreferences.copy(backMode = if (index == 1) AnkiBackMode.ARTICLE else AnkiBackMode.CONCISE)
+                                    updatePreferences(next)
+                                    selectedBlockIds = defaultDictionaryBlockIds(option, next.backMode)
+                                    manualBack = null
+                                    editingManually = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            FilterChip(
+                                selected = detailsExpanded,
+                                onClick = { detailsExpanded = !detailsExpanded },
+                                label = { Text(readerString("Details", "Состав")) },
+                            )
                             if (detailsExpanded && selectedOption != null) {
                                 Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
                                     Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
@@ -457,16 +445,15 @@ private fun AnkiCardIsland(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun RowScope.BottomNavigationItem(
-    id: String,
+    index: Int,
     @RawRes icon: Int,
     label: String,
     selected: Boolean,
     modifier: Modifier,
-    onSelect: (String) -> Unit,
 ) {
     RepositoryLiquidBottomTab(
+        index = index,
         selected = selected,
-        onClick = { onSelect(id) },
         modifier = modifier,
     ) {
         ReaderIcon(icon, label, Modifier.size(24.dp), ColorFilter.tint(if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant))

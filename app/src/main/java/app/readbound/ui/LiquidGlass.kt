@@ -388,18 +388,25 @@ fun GlassFilterChip(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val tint by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+    val container by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
         label = "glass selection",
     )
-    GlassSurface(modifier = modifier.heightIn(min = 48.dp).semantics { this.selected = selected },
-        shape = RoundedCornerShape(50), color = tint,
-        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-        onClick = onClick, enabled = enabled,
-        border = if (selected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = .32f)) else null,
-    ) {
-        Box(Modifier.padding(horizontal = 16.dp, vertical = 10.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
-            ProvideTextStyle(MaterialTheme.typography.labelLarge, content = label)
+    val foreground by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        label = "glass selection content",
+    )
+    CompositionLocalProvider(LocalContentColor provides foreground) {
+        ProvideTextStyle(MaterialTheme.typography.labelLarge) {
+            RepositoryLiquidButton(
+                onClick = onClick,
+                backdrop = LocalGlassBackdrop.current,
+                modifier = modifier.heightIn(min = 48.dp).semantics { this.selected = selected },
+                enabled = enabled,
+                shape = RoundedCornerShape(50),
+                surfaceColor = container.copy(alpha = if (selected) .86f else .62f),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+            ) { label() }
         }
     }
 }
@@ -451,10 +458,14 @@ fun GlassSegmentedControl(
     ) {
         labels.forEachIndexed { index, label ->
             RepositoryLiquidBottomTab(
+                index = index,
                 selected = index == selectedIndex,
-                onClick = { onSelected(index) },
             ) {
-                Text(label, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (index == selectedIndex) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

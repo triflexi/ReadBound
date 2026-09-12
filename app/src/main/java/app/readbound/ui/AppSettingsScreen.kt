@@ -27,9 +27,11 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import app.readbound.ui.GlassButton as Button
 import app.readbound.ui.GlassAlertDialog as AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -314,18 +316,15 @@ fun AppSettingsScreen(
                     ) { Text(if (container.plugins.ankiPermissionGranted()) readerString("Permission granted", "Доступ разрешён") else readerString("Grant permission", "Разрешить доступ")) }
                     Text(readerString("Each card has editable front and back sides.", "У каждой карточки можно отредактировать лицевую и обратную стороны."), style = MaterialTheme.typography.bodyMedium)
                     Text(readerString("Default dictionary content", "Содержимое из словаря по умолчанию"), style = MaterialTheme.typography.labelMedium)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = anki.backMode == AnkiBackMode.CONCISE,
-                            onClick = { scope.launch { container.settings.updateAnki(anki.copy(backMode = AnkiBackMode.CONCISE)) } },
-                            label = { Text(readerString("Concise", "Кратко")) },
-                        )
-                        FilterChip(
-                            selected = anki.backMode == AnkiBackMode.ARTICLE,
-                            onClick = { scope.launch { container.settings.updateAnki(anki.copy(backMode = AnkiBackMode.ARTICLE)) } },
-                            label = { Text(readerString("Full article", "Вся статья")) },
-                        )
-                    }
+                    GlassSegmentedControl(
+                        labels = listOf(readerString("Concise", "Кратко"), readerString("Full article", "Вся статья")),
+                        selectedIndex = if (anki.backMode == AnkiBackMode.ARTICLE) 1 else 0,
+                        onSelected = { index ->
+                            val mode = if (index == 1) AnkiBackMode.ARTICLE else AnkiBackMode.CONCISE
+                            scope.launch { container.settings.updateAnki(anki.copy(backMode = mode)) }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     SettingSwitch(readerString("Add pronunciation or reading", "Добавлять произношение"), anki.includeReading) { value -> scope.launch { container.settings.updateAnki(anki.copy(includeReading = value)) } }
                     SettingSwitch(readerString("Add grammar tags", "Добавлять грамматику"), anki.includeTags) { value -> scope.launch { container.settings.updateAnki(anki.copy(includeTags = value)) } }
                     SettingSwitch(readerString("Add dictionary name", "Добавлять название словаря"), anki.includeDictionaryName) { value -> scope.launch { container.settings.updateAnki(anki.copy(includeDictionaryName = value)) } }
@@ -476,9 +475,9 @@ private fun SettingsTopIsland(onBack: () -> Unit, backdrop: Backdrop, modifier: 
             modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            GlassIconButton(
-                onClick = onBack,
-                modifier = Modifier.size(48.dp),
+            Box(
+                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(50)).clickable(onClick = onBack),
+                contentAlignment = Alignment.Center,
             ) {
                 ReaderIcon(
                     R.raw.icon_back,

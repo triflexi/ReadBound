@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import app.readbound.ui.GlassAlertDialog as AlertDialog
 import app.readbound.ui.GlassButton as Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +51,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -202,6 +204,7 @@ private fun AnnotationCard(
         "coral" -> ReaderColors.HighlightCoral
         else -> ReaderColors.HighlightYellow
     }
+    val copiedMessage = readerString("Copied", "Скопировано")
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
@@ -243,25 +246,37 @@ private fun AnnotationCard(
                 itemTags.forEach { tag -> GlassLabelChip(label = { Text(tag.name) }) }
             }
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .72f)),
             ) {
-                val actionPadding = PaddingValues(horizontal = 2.dp, vertical = 8.dp)
-                TextButton(onClick = onEdit, modifier = Modifier.weight(1f), contentPadding = actionPadding) {
-                    Text(readerString("Edit", "Изменить"), maxLines = 1, style = MaterialTheme.typography.labelSmall)
+                NoteAction(R.raw.icon_note, readerString("Edit", "Изменить"), onEdit)
+                NoteAction(R.raw.icon_copy, readerString("Copy", "Копировать")) {
+                    (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                        .setPrimaryClip(android.content.ClipData.newPlainText("quote", item.annotation.quote))
+                    onMessage(copiedMessage)
                 }
-                TextButton(onClick = { (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("quote", item.annotation.quote)); onMessage("Copied") }, modifier = Modifier.weight(1f), contentPadding = actionPadding) {
-                    Text(readerString("Copy", "Копировать"), maxLines = 1, style = MaterialTheme.typography.labelSmall)
-                }
-                TextButton(onClick = {
+                NoteAction(R.raw.icon_share, readerString("Share", "Поделиться")) {
                     context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, item.annotation.quote) }, null))
-                }, modifier = Modifier.weight(1f), contentPadding = actionPadding) {
-                    Text(readerString("Share", "Поделиться"), maxLines = 1, style = MaterialTheme.typography.labelSmall)
                 }
-                TextButton(onClick = onAnki, modifier = Modifier.weight(1f), contentPadding = actionPadding) {
-                    ReaderIcon(R.raw.icon_anki, null, Modifier.size(18.dp), ColorFilter.tint(MaterialTheme.colorScheme.primary)); Spacer(Modifier.width(2.dp)); Text("Anki", maxLines = 1, style = MaterialTheme.typography.labelSmall)
-                }
+                NoteAction(R.raw.icon_anki, "Anki", onAnki)
             }
         }
+    }
+}
+
+@Composable
+private fun RowScope.NoteAction(icon: Int, label: String, onClick: () -> Unit) {
+    val color = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        modifier = Modifier.weight(1f).height(58.dp).clickable(role = Role.Button, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        ReaderIcon(icon, label, Modifier.size(19.dp), ColorFilter.tint(color))
+        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelSmall, color = color)
     }
 }
 

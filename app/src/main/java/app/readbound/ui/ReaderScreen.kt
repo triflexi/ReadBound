@@ -16,6 +16,7 @@ import android.webkit.WebViewClient
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,9 +34,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import app.readbound.ui.GlassAlertDialog as AlertDialog
 import app.readbound.ui.GlassButton as Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,6 +74,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -339,7 +344,6 @@ fun ReaderScreen(
             if (controlsVisible) {
                 ReaderTopBar(
                     book = currentBook,
-                    backdrop = readerBackdrop,
                     bookmarked = bookmarks.any { it.chapterIndex == chapterIndex },
                     onBack = { scope.launch { persistPosition(); onBack() } },
                     onBookmark = {
@@ -503,7 +507,7 @@ fun ReaderScreen(
 @Composable
 private fun ReaderTopBar(
     book: BookEntity,
-    bookmarked: Boolean, backdrop: Backdrop,
+    bookmarked: Boolean,
     onBack: () -> Unit,
     onBookmark: () -> Unit,
 ) {
@@ -511,7 +515,9 @@ private fun ReaderTopBar(
         modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 6.dp).height(64.dp),
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(22.dp),
-        shadowElevation = 8.dp, backdrop = backdrop,
+        // WebView-backed content can leave stale translucent samples in a live
+        // backdrop. The dense fallback keeps the top island clean and stable.
+        shadowElevation = 8.dp, backdrop = null,
     ) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             ReaderControlIcon(R.raw.icon_back, "Back", onBack)
@@ -1002,7 +1008,11 @@ private fun ReaderSettingsSheet(
     val sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = ::close, sheetState = sheetState, containerColor = MaterialTheme.colorScheme.surface) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 6.dp),
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(readerString("Reading settings", "Настройки чтения"), style = MaterialTheme.typography.headlineMedium)
@@ -1031,13 +1041,12 @@ private fun ReaderSettingsSheet(
                     onClick = { stage(draft.copy(fontFamily = if (draft.fontFamily == "Literata") "Sans" else "Literata")) },
                     modifier = Modifier.weight(1f),
                 )
-                Surface(Modifier.width(120.dp), color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(18.dp)) {
-                    Row(Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
-                        TextButton(onClick = { stage(draft.copy(fontSize = (draft.fontSize - 1).coerceAtLeast(12))) }) { Text("−") }
-                        Text("${draft.fontSize}")
-                        TextButton(onClick = { stage(draft.copy(fontSize = (draft.fontSize + 1).coerceAtMost(36))) }) { Text("+") }
-                    }
-                }
+                FontSizeStepper(
+                    value = draft.fontSize,
+                    onDecrease = { stage(draft.copy(fontSize = (draft.fontSize - 1).coerceAtLeast(12))) },
+                    onIncrease = { stage(draft.copy(fontSize = (draft.fontSize + 1).coerceAtMost(36))) },
+                    modifier = Modifier.width(144.dp),
+                )
             }
             Text(readerString("Line spacing", "Межстрочный интервал") + " · ${"%.2f".format(Locale.US, draft.lineHeight)}")
             Slider(
@@ -1066,8 +1075,36 @@ private fun ReaderSettingsSheet(
                 onSelected = { stage(draft.copy(readingMode = readingModes[it])) },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(onClick = ::close, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(19.dp)) { Text(readerString("Done", "Готово")) }
-            Spacer(Modifier.height(22.dp))
+            Button(onClick = ::close, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), shape = RoundedCornerShape(19.dp)) { Text(readerString("Done", "Готово")) }
+            Spacer(Modifier.height(10.dp))
+        }
+    }
+}
+
+@Composable
+private fun FontSizeStepper(
+    value: Int,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.height(48.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(18.dp),
+    ) {
+        Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(48.dp).clip(RoundedCornerShape(18.dp)).clickable(role = Role.Button, onClick = onDecrease),
+                contentAlignment = Alignment.Center,
+            ) { Text("−", style = MaterialTheme.typography.titleMedium) }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Text("$value", style = MaterialTheme.typography.bodyLarge)
+            }
+            Box(
+                Modifier.size(48.dp).clip(RoundedCornerShape(18.dp)).clickable(role = Role.Button, onClick = onIncrease),
+                contentAlignment = Alignment.Center,
+            ) { Text("+", style = MaterialTheme.typography.titleMedium) }
         }
     }
 }
