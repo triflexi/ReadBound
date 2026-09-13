@@ -1,8 +1,5 @@
 package app.readbound.ui
 
-import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color as AndroidColor
@@ -298,7 +295,6 @@ fun ReaderScreen(
         ReaderTheme.SEPIA -> ReaderColors.ReaderBackground
     }
 
-    val readerBackdrop = rememberLayerBackdrop { drawRect(pageBackground); drawContent() }
     BoxWithConstraints(Modifier.fillMaxSize().background(pageBackground)) {
         val readerWidth = if (maxWidth >= 720.dp) 680.dp else maxWidth
         val currentBook = book
@@ -318,7 +314,10 @@ fun ReaderScreen(
                         preferences = preferences,
                         annotations = annotations.filter { it.chapterIndex == chapterIndex },
                         clearSelectionRevision = clearSelectionRevision,
-                        modifier = Modifier.width(readerWidth).fillMaxHeight().layerBackdrop(readerBackdrop),
+                        // Keep WebView out of a recorded graphics layer. Android's
+                        // platform view must render directly or book pages can be
+                        // blank/stale on devices using hardware acceleration.
+                        modifier = Modifier.width(readerWidth).fillMaxHeight(),
                         onProgress = { progress, offset, page, pageCount ->
                             chapterProgress = progress
                             chapterTextOffset = offset
@@ -354,7 +353,7 @@ fun ReaderScreen(
                     },
                 )
                 ReaderProgressPanel(
-                    overallProgress = globalProgress.toFloat(), backdrop = readerBackdrop,
+                    overallProgress = globalProgress.toFloat(),
                     chapterProgress = chapterProgress.toFloat(),
                     page = chapterPage,
                     pageCount = chapterPageCount,
@@ -544,7 +543,7 @@ private fun ReaderControlIcon(resource: Int, description: String, onClick: () ->
 
 @Composable
 private fun ReaderProgressPanel(
-    overallProgress: Float, backdrop: Backdrop,
+    overallProgress: Float,
     chapterProgress: Float,
     page: Int,
     pageCount: Int,
@@ -568,7 +567,7 @@ private fun ReaderProgressPanel(
         modifier = modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(24.dp),
-        shadowElevation = 12.dp, backdrop = backdrop,
+        shadowElevation = 12.dp,
     ) {
         Column(Modifier.padding(horizontal = 18.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
